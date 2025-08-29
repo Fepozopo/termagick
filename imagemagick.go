@@ -470,12 +470,17 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 
 	case "sepia":
 		if len(args) != 1 {
-			return fmt.Errorf("sepia requires 1 argument: threshold")
+			return fmt.Errorf("sepia requires 1 argument: percentage (0-100)")
 		}
-		threshold, err := strconv.ParseFloat(args[0], 64)
+		percentage, err := strconv.ParseFloat(args[0], 64)
 		if err != nil {
-			return fmt.Errorf("invalid threshold: %w", err)
+			return fmt.Errorf("invalid percentage: %w", err)
 		}
+		if percentage < 0 || percentage > 100 {
+			return fmt.Errorf("percentage must be between 0 and 100")
+		}
+		_, quantumRange := imagick.GetQuantumRange()
+		threshold := percentage / 100 * float64(quantumRange)
 		return wand.SepiaToneImage(threshold)
 
 	case "sharpen":
