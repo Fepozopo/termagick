@@ -10,6 +10,16 @@ import (
 // ApplyCommand applies the given command to the magick wand
 func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) error {
 	switch commandName {
+	case "addNoise":
+		if len(args) != 1 {
+			return fmt.Errorf("addNoise requires 1 argument: noiseType")
+		}
+		noiseType, err := strconv.ParseInt(args[0], 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid noiseType: %w", err)
+		}
+		return wand.AddNoiseImage(imagick.NoiseType(noiseType), 1)
+
 	case "adaptiveBlur":
 		if len(args) != 2 {
 			return fmt.Errorf("adaptiveBlur requires 2 arguments: radius and sigma")
@@ -70,16 +80,6 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 		}
 		return wand.AdaptiveThresholdImage(uint(width), uint(height), offset)
 
-	case "addNoise":
-		if len(args) != 1 {
-			return fmt.Errorf("addNoise requires 1 argument: noiseType")
-		}
-		noiseType, err := strconv.ParseInt(args[0], 10, 64)
-		if err != nil {
-			return fmt.Errorf("invalid noiseType: %w", err)
-		}
-		return wand.AddNoiseImage(imagick.NoiseType(noiseType), 1)
-
 	case "autoGamma":
 		return wand.AutoGammaImage()
 
@@ -94,6 +94,7 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 			return fmt.Errorf("blackThreshold requires 1 argument: threshold")
 		}
 		pixel := imagick.NewPixelWand()
+		defer pixel.Destroy()
 		pixel.SetColor(args[0])
 		return wand.BlackThresholdImage(pixel)
 
@@ -141,8 +142,7 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 		}
 		sourceWand := imagick.NewMagickWand()
 		defer sourceWand.Destroy()
-		err := sourceWand.ReadImage(args[0])
-		if err != nil {
+		if err := sourceWand.ReadImage(args[0]); err != nil {
 			return fmt.Errorf("failed to read source image: %w", err)
 		}
 		compose, err := strconv.ParseInt(args[1], 10, 64)
@@ -159,6 +159,35 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 		}
 		return wand.CompositeImage(sourceWand, imagick.CompositeOperator(compose), true, int(x), int(y))
 
+	case "colorize":
+		// colorize requires 2 args: color and opacity (0.0 - 1.0)
+		if len(args) != 2 {
+			return fmt.Errorf("colorize requires 2 arguments: color and opacity")
+		}
+		color := args[0]
+		opacity, err := strconv.ParseFloat(args[1], 64)
+		if err != nil {
+			return fmt.Errorf("invalid opacity: %w", err)
+		}
+		// Create pixel wand for colorize color
+		colorPixel := imagick.NewPixelWand()
+		defer colorPixel.Destroy()
+		colorPixel.SetColor(color)
+
+		// For opacity, use a pixel wand with an rgba alpha value.
+		// Construct an rgba string with desired alpha; color channels are ignored for the opacity pixel.
+		opacityPixel := imagick.NewPixelWand()
+		defer opacityPixel.Destroy()
+		// Clamp opacity to [0,1]
+		if opacity < 0 {
+			opacity = 0
+		} else if opacity > 1 {
+			opacity = 1
+		}
+		opacityPixel.SetColor(fmt.Sprintf("rgba(0,0,0,%f)", opacity))
+
+		return wand.ColorizeImage(colorPixel, opacityPixel)
+
 	case "contrast":
 		if len(args) != 1 {
 			return fmt.Errorf("contrast requires 1 argument: sharpen (true/false)")
@@ -168,6 +197,62 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 			return fmt.Errorf("invalid sharpen value: %w", err)
 		}
 		return wand.ContrastImage(sharpen)
+
+	case "contrastStretch":
+		// contrastStretch requires 2 args: low and high (floats)
+		if len(args) != 2 {
+			return fmt.Errorf("contrastStretch requires 2 arguments: low and high")
+		}
+		low, err := strconv.ParseFloat(args[0], 64)
+		if err != nil {
+			return fmt.Errorf("invalid low value: %w", err)
+		}
+		high, err := strconv.ParseFloat(args[1], 64)
+		if err != nil {
+			return fmt.Errorf("invalid high value: %w", err)
+		}
+		return wand.ContrastStretchImage(low, high)
+
+	case "crop":
+		// crop requires width, height, x, y
+		if len(args) != 4 {
+			return fmt.Errorf("crop requires 4 arguments: width, height, x, y")
+		}
+		width, err := strconv.ParseUint(args[0], 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid width: %w", err)
+		}
+		height, err := strconv.ParseUint(args[1], 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid height: %w", err)
+		}
+		x, err := strconv.ParseInt(args[2], 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid x: %w", err)
+		}
+		y, err := strconv.ParseInt(args[3], 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid y: %w", err)
+		}
+		return wand.CropImage(uint(width), uint(height), int(x), int(y))
+
+	case "deskew":
+		// deskew requires 1 arg: threshold
+		if len(args) != 1 {
+			return fmt.Errorf("deskew requires 1 argument: threshold")
+		}
+		threshold, err := strconv.ParseFloat(args[0], 64)
+		if err != nil {
+			return fmt.Errorf("invalid threshold: %w", err)
+		}
+		return wand.DeskewImage(threshold)
+
+	case "despeckle":
+		// despeckle takes no args
+		if len(args) != 0 {
+			return fmt.Errorf("despeckle takes no arguments")
+		}
+		return wand.DespeckleImage()
 
 	case "edge":
 		if len(args) != 1 {
@@ -200,6 +285,25 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 
 	case "grayscale":
 		return wand.SetImageColorspace(imagick.COLORSPACE_GRAY)
+
+	case "modulate":
+		// modulate requires 3 args: brightness, saturation, hue
+		if len(args) != 3 {
+			return fmt.Errorf("modulate requires 3 arguments: brightness, saturation, hue")
+		}
+		brightness, err := strconv.ParseFloat(args[0], 64)
+		if err != nil {
+			return fmt.Errorf("invalid brightness: %w", err)
+		}
+		saturation, err := strconv.ParseFloat(args[1], 64)
+		if err != nil {
+			return fmt.Errorf("invalid saturation: %w", err)
+		}
+		hue, err := strconv.ParseFloat(args[2], 64)
+		if err != nil {
+			return fmt.Errorf("invalid hue: %w", err)
+		}
+		return wand.ModulateImage(brightness, saturation, hue)
 
 	case "monochrome":
 		return wand.SetImageType(imagick.IMAGE_TYPE_BILEVEL)
@@ -273,9 +377,8 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 		if err != nil {
 			return fmt.Errorf("invalid degrees: %w", err)
 		}
-		// NewPixelWand creates a new pixel wand.
 		pixel := imagick.NewPixelWand()
-		// SetColor sets the color of the pixel wand.
+		defer pixel.Destroy()
 		pixel.SetColor("black")
 		return wand.RotateImage(pixel, degrees)
 

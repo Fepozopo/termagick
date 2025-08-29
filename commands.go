@@ -107,11 +107,49 @@ var commands = []CommandMeta{
 		},
 	},
 	{
+		Name:        "colorize",
+		Description: "Colorize (tint) the image with a given color and opacity",
+		Params: []ParamMeta{
+			{Name: "color", Type: ParamTypeString, Required: true, Hint: "Color value (hex, rgb(), or name) to apply as tint.", Example: "#ff0000"},
+			{Name: "opacity", Type: ParamTypeFloat, Required: true, Min: float64Ptr(0.0), Max: float64Ptr(1.0), Hint: "Opacity of the tint from 0.0 to 1.0.", Example: "0.5"},
+		},
+	},
+	{
 		Name:        "contrast",
 		Description: "Enhance or reduce the image contrast",
 		Params: []ParamMeta{
 			{Name: "sharpen", Type: ParamTypeBool, Required: true, Hint: "true = increase contrast (sharpen), false = decrease contrast (soften).", Example: "true"},
 		},
+	},
+	{
+		Name:        "contrastStretch",
+		Description: "Stretch image contrast by remapping intensity range",
+		Params: []ParamMeta{
+			{Name: "low", Type: ParamTypeFloat, Required: true, Min: float64Ptr(0.0), Max: float64Ptr(100.0), Hint: "Lower percent to clip (0-100).", Unit: "%", Example: "0.5"},
+			{Name: "high", Type: ParamTypeFloat, Required: true, Min: float64Ptr(0.0), Max: float64Ptr(100.0), Hint: "Upper percent to clip (0-100).", Unit: "%", Example: "99.5"},
+		},
+	},
+	{
+		Name:        "crop",
+		Description: "Crop the image to a rectangle",
+		Params: []ParamMeta{
+			{Name: "width", Type: ParamTypeInt, Required: true, Min: float64Ptr(0), Hint: "Crop width in pixels.", Example: "800", Unit: "px"},
+			{Name: "height", Type: ParamTypeInt, Required: true, Min: float64Ptr(0), Hint: "Crop height in pixels.", Example: "600", Unit: "px"},
+			{Name: "x", Type: ParamTypeInt, Required: true, Hint: "X offset in pixels of the crop origin.", Example: "0", Unit: "px"},
+			{Name: "y", Type: ParamTypeInt, Required: true, Hint: "Y offset in pixels of the crop origin.", Example: "0", Unit: "px"},
+		},
+	},
+	{
+		Name:        "deskew",
+		Description: "Reduce skew in the image using an automatic algorithm",
+		Params: []ParamMeta{
+			{Name: "threshold", Type: ParamTypeFloat, Required: true, Hint: "Threshold used to detect skew; smaller values = more sensitive.", Example: "40.0"},
+		},
+	},
+	{
+		Name:        "despeckle",
+		Description: "Reduce speckle noise in the image",
+		Params:      []ParamMeta{},
 	},
 	{
 		Name:        "edge",
