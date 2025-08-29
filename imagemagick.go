@@ -10,16 +10,6 @@ import (
 // ApplyCommand applies the given command to the magick wand
 func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) error {
 	switch commandName {
-	case "addNoise":
-		if len(args) != 1 {
-			return fmt.Errorf("addNoise requires 1 argument: noiseType")
-		}
-		noiseType, err := strconv.ParseInt(args[0], 10, 64)
-		if err != nil {
-			return fmt.Errorf("invalid noiseType: %w", err)
-		}
-		return wand.AddNoiseImage(imagick.NoiseType(noiseType), 1)
-
 	case "adaptiveBlur":
 		if len(args) != 2 {
 			return fmt.Errorf("adaptiveBlur requires 2 arguments: radius and sigma")
@@ -79,6 +69,16 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 			return fmt.Errorf("invalid offset: %w", err)
 		}
 		return wand.AdaptiveThresholdImage(uint(width), uint(height), offset)
+
+	case "addNoise":
+		if len(args) != 1 {
+			return fmt.Errorf("addNoise requires 1 argument: noiseType")
+		}
+		noiseType, err := strconv.ParseInt(args[0], 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid noiseType: %w", err)
+		}
+		return wand.AddNoiseImage(imagick.NoiseType(noiseType), 1)
 
 	case "autoGamma":
 		return wand.AutoGammaImage()
@@ -312,6 +312,10 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 			return fmt.Errorf("invalid threshold: %w", err)
 		}
 		return wand.SolarizeImage(threshold)
+
+	case "strip":
+		// Remove image profiles and comments/metadata
+		return wand.StripImage()
 
 	case "swirl":
 		if len(args) != 1 {

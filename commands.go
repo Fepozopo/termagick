@@ -5,20 +5,6 @@ package main
 
 var commands = []CommandMeta{
 	{
-		Name:        "addNoise",
-		Description: "Add noise to the image",
-		Params: []ParamMeta{
-			{
-				Name:        "noiseType",
-				Type:        ParamTypeEnum,
-				Required:    true,
-				Hint:        "Choose the noise distribution to apply. Different types produce qualitatively different noise.",
-				Example:     "GAUSSIAN",
-				EnumOptions: []string{"UNIFORM", "GAUSSIAN", "MULTIPLICATIVE", "IMPULSE", "LAPLACIAN", "POISSON"},
-			},
-		},
-	},
-	{
 		Name:        "adaptiveBlur",
 		Description: "Adaptively blur the image",
 		Params: []ParamMeta{
@@ -49,6 +35,20 @@ var commands = []CommandMeta{
 			{Name: "width", Type: ParamTypeInt, Required: true, Min: float64Ptr(1), Hint: "Block width in pixels used for local thresholding. Lower = finer local adaptation.", Example: "15", Unit: "px"},
 			{Name: "height", Type: ParamTypeInt, Required: true, Min: float64Ptr(1), Hint: "Block height in pixels used for local thresholding. Lower = finer local adaptation.", Example: "15", Unit: "px"},
 			{Name: "offset", Type: ParamTypeFloat, Required: true, Hint: "Offset applied during threshold test. Negative offsets favor black; positive favor white.", Example: "0.0"},
+		},
+	},
+	{
+		Name:        "addNoise",
+		Description: "Add noise to the image",
+		Params: []ParamMeta{
+			{
+				Name:        "noiseType",
+				Type:        ParamTypeEnum,
+				Required:    true,
+				Hint:        "Choose the noise distribution to apply. Different types produce qualitatively different noise.",
+				Example:     "GAUSSIAN",
+				EnumOptions: []string{"UNIFORM", "GAUSSIAN", "MULTIPLICATIVE", "IMPULSE", "LAPLACIAN", "POISSON"},
+			},
 		},
 	},
 	{
@@ -216,6 +216,11 @@ var commands = []CommandMeta{
 		Params: []ParamMeta{
 			{Name: "threshold", Type: ParamTypeFloat, Required: true, Hint: "Threshold at which pixels are inverted. Lower = subtle effect; higher = stronger inversion.", Example: "50.0"},
 		},
+	},
+	{
+		Name:        "strip",
+		Description: "Remove image profiles and comments (strip metadata)",
+		Params:      []ParamMeta{},
 	},
 	{
 		Name:        "swirl",
