@@ -52,6 +52,18 @@ var commands = []CommandMeta{
 		},
 	},
 	{
+		Name:        "annotate",
+		Description: "Draw text onto the image",
+		Params: []ParamMeta{
+			{Name: "text", Type: ParamTypeString, Required: true, Hint: "Text to draw on the image.", Example: "Hello, World!"},
+			{Name: "font", Type: ParamTypeString, Required: false, Hint: "Font family or path to a font file to use for text.", Example: "Arial"},
+			{Name: "size", Type: ParamTypeFloat, Required: true, Min: float64Ptr(1.0), Hint: "Font size in points.", Example: "24.0"},
+			{Name: "x", Type: ParamTypeInt, Required: true, Hint: "X coordinate for the text baseline origin.", Example: "10", Unit: "px"},
+			{Name: "y", Type: ParamTypeInt, Required: true, Hint: "Y coordinate for the text baseline origin.", Example: "50", Unit: "px"},
+			{Name: "color", Type: ParamTypeString, Required: true, Hint: "Text color (hex, rgb(), or name).", Example: "#ffffff"},
+		},
+	},
+	{
 		Name:        "autoGamma",
 		Description: "Automatically adjust the image gamma",
 		Params:      []ParamMeta{},
@@ -97,6 +109,14 @@ var commands = []CommandMeta{
 		},
 	},
 	{
+		Name:        "colorize",
+		Description: "Colorize (tint) the image with a given color and opacity",
+		Params: []ParamMeta{
+			{Name: "color", Type: ParamTypeString, Required: true, Hint: "Color value (hex, rgb(), or name) to apply as tint.", Example: "#ff0000"},
+			{Name: "opacity", Type: ParamTypeFloat, Required: true, Min: float64Ptr(0.0), Max: float64Ptr(1.0), Hint: "Opacity of the tint from 0.0 to 1.0.", Example: "0.5"},
+		},
+	},
+	{
 		Name:        "composite",
 		Description: "Composite an image onto another",
 		Params: []ParamMeta{
@@ -104,14 +124,6 @@ var commands = []CommandMeta{
 			{Name: "composeOperator", Type: ParamTypeEnum, Required: true, Hint: "Compositing operator / blend mode. Choose the desired blend behavior.", Example: "OVER", EnumOptions: []string{"OVER", "IN", "OUT", "ATOP", "XOR", "MULTIPLY", "SCREEN", "ADD", "SUBTRACT"}},
 			{Name: "x", Type: ParamTypeInt, Required: true, Hint: "X offset in pixels where the source is placed relative to top-left.", Example: "100", Unit: "px"},
 			{Name: "y", Type: ParamTypeInt, Required: true, Hint: "Y offset in pixels where the source is placed relative to top-left.", Example: "50", Unit: "px"},
-		},
-	},
-	{
-		Name:        "colorize",
-		Description: "Colorize (tint) the image with a given color and opacity",
-		Params: []ParamMeta{
-			{Name: "color", Type: ParamTypeString, Required: true, Hint: "Color value (hex, rgb(), or name) to apply as tint.", Example: "#ff0000"},
-			{Name: "opacity", Type: ParamTypeFloat, Required: true, Min: float64Ptr(0.0), Max: float64Ptr(1.0), Hint: "Opacity of the tint from 0.0 to 1.0.", Example: "0.5"},
 		},
 	},
 	{
@@ -159,8 +171,21 @@ var commands = []CommandMeta{
 		},
 	},
 	{
+		Name:        "emboss",
+		Description: "Create an embossed effect",
+		Params: []ParamMeta{
+			{Name: "radius", Type: ParamTypeFloat, Required: true, Min: float64Ptr(0.0), Unit: "px", Hint: "Neighborhood radius for embossing.", Example: "1.0"},
+			{Name: "sigma", Type: ParamTypeFloat, Required: true, Min: float64Ptr(0.0), Hint: "Standard deviation controlling emboss strength.", Example: "0.5"},
+		},
+	},
+	{
 		Name:        "equalize",
 		Description: "Equalize the image histogram to boost global contrast",
+		Params:      []ParamMeta{},
+	},
+	{
+		Name:        "enhance",
+		Description: "Enhance image quality (reduce noise and improve clarity)",
 		Params:      []ParamMeta{},
 	},
 	{
@@ -184,6 +209,31 @@ var commands = []CommandMeta{
 		Name:        "grayscale",
 		Description: "Convert the image to grayscale colorspace",
 		Params:      []ParamMeta{},
+	},
+	{
+		Name:        "level",
+		Description: "Remap image levels (black point, gamma, white point)",
+		Params: []ParamMeta{
+			{Name: "blackPoint", Type: ParamTypeFloat, Required: true, Hint: "Black point (0-QuantumRange).", Example: "0.0"},
+			{Name: "gamma", Type: ParamTypeFloat, Required: true, Hint: "Gamma adjustment value.", Example: "1.0"},
+			{Name: "whitePoint", Type: ParamTypeFloat, Required: true, Hint: "White point (0-QuantumRange).", Example: "100.0"},
+		},
+	},
+	{
+		Name:        "medianFilter",
+		Description: "Apply a median filter to reduce salt-and-pepper noise",
+		Params: []ParamMeta{
+			{Name: "radius", Type: ParamTypeFloat, Required: true, Min: float64Ptr(0.0), Hint: "Radius for the median filter kernel.", Example: "1.0"},
+		},
+	},
+	{
+		Name:        "modulate",
+		Description: "Adjust brightness, saturation and hue",
+		Params: []ParamMeta{
+			{Name: "brightness", Type: ParamTypeFloat, Required: true, Hint: "Brightness percent (100 = unchanged).", Example: "100.0"},
+			{Name: "saturation", Type: ParamTypeFloat, Required: true, Hint: "Saturation percent (100 = unchanged).", Example: "100.0"},
+			{Name: "hue", Type: ParamTypeFloat, Required: true, Hint: "Hue percent (100 = unchanged).", Example: "100.0"},
+		},
 	},
 	{
 		Name:        "monochrome",
@@ -268,10 +318,37 @@ var commands = []CommandMeta{
 		},
 	},
 	{
+		Name:        "threshold",
+		Description: "Threshold the image to pure black and white",
+		Params: []ParamMeta{
+			{Name: "threshold", Type: ParamTypeFloat, Required: true, Hint: "Threshold value; pixels above become white, below become black.", Example: "128.0"},
+		},
+	},
+	{
 		Name:        "trim",
 		Description: "Remove blank/background edges from the image",
 		Params: []ParamMeta{
 			{Name: "fuzz", Type: ParamTypePercent, Required: true, Min: float64Ptr(0.0), Max: float64Ptr(100.0), Hint: "Tolerance when matching border color. Lower = strict (only exact matches trimmed); higher = permissive (more aggressive trimming).", Example: "3.0", Unit: "%"},
+		},
+	},
+	{
+		Name:        "unsharp",
+		Description: "Apply an unsharp mask to sharpen the image with advanced controls",
+		Params: []ParamMeta{
+			{Name: "radius", Type: ParamTypeFloat, Required: true, Min: float64Ptr(0.0), Unit: "px", Hint: "Radius of the unsharp mask.", Example: "1.0"},
+			{Name: "sigma", Type: ParamTypeFloat, Required: true, Min: float64Ptr(0.0), Hint: "Standard deviation for the Gaussian blur used by the mask.", Example: "0.5"},
+			{Name: "amount", Type: ParamTypeFloat, Required: true, Hint: "Sharpening amount (multiplier).", Example: "1.5"},
+			{Name: "threshold", Type: ParamTypeFloat, Required: true, Hint: "Threshold to limit sharpening to significant edges.", Example: "0.05"},
+		},
+	},
+	{
+		Name:        "vignette",
+		Description: "Apply a vignette effect to darken or tint edges",
+		Params: []ParamMeta{
+			{Name: "radius", Type: ParamTypeFloat, Required: true, Min: float64Ptr(0.0), Hint: "Radius of the vignette effect.", Example: "50.0"},
+			{Name: "sigma", Type: ParamTypeFloat, Required: true, Min: float64Ptr(0.0), Hint: "Feathering/smoothing of the vignette.", Example: "20.0"},
+			{Name: "x", Type: ParamTypeInt, Required: true, Hint: "X coordinate of the vignette center.", Example: "0", Unit: "px"},
+			{Name: "y", Type: ParamTypeInt, Required: true, Hint: "Y coordinate of the vignette center.", Example: "0", Unit: "px"},
 		},
 	},
 }

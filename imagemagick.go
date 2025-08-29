@@ -10,16 +10,6 @@ import (
 // ApplyCommand applies the given command to the magick wand
 func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) error {
 	switch commandName {
-	case "addNoise":
-		if len(args) != 1 {
-			return fmt.Errorf("addNoise requires 1 argument: noiseType")
-		}
-		noiseType, err := strconv.ParseInt(args[0], 10, 64)
-		if err != nil {
-			return fmt.Errorf("invalid noiseType: %w", err)
-		}
-		return wand.AddNoiseImage(imagick.NoiseType(noiseType), 1)
-
 	case "adaptiveBlur":
 		if len(args) != 2 {
 			return fmt.Errorf("adaptiveBlur requires 2 arguments: radius and sigma")
@@ -80,6 +70,57 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 		}
 		return wand.AdaptiveThresholdImage(uint(width), uint(height), offset)
 
+	case "addNoise":
+		if len(args) != 1 {
+			return fmt.Errorf("addNoise requires 1 argument: noiseType")
+		}
+		noiseType, err := strconv.ParseInt(args[0], 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid noiseType: %w", err)
+		}
+		return wand.AddNoiseImage(imagick.NoiseType(noiseType), 1)
+
+	case "annotate":
+		// annotate supports two forms:
+		// 5 args: text, size, x, y, color
+		// 6 args: text, font, size, x, y, color
+		if !(len(args) == 5 || len(args) == 6) {
+			return fmt.Errorf("annotate requires 5 or 6 arguments: text, [font], size, x, y, color")
+		}
+		text := args[0]
+		font := ""
+		sizeIdx := 1
+		if len(args) == 6 {
+			font = args[1]
+			sizeIdx = 2
+		}
+		size, err := strconv.ParseFloat(args[sizeIdx], 64)
+		if err != nil {
+			return fmt.Errorf("invalid size: %w", err)
+		}
+		xFloat, err := strconv.ParseFloat(args[sizeIdx+1], 64)
+		if err != nil {
+			return fmt.Errorf("invalid x: %w", err)
+		}
+		yFloat, err := strconv.ParseFloat(args[sizeIdx+2], 64)
+		if err != nil {
+			return fmt.Errorf("invalid y: %w", err)
+		}
+		color := args[sizeIdx+3]
+
+		dw := imagick.NewDrawingWand()
+		defer dw.Destroy()
+		if font != "" {
+			dw.SetFont(font)
+		}
+		dw.SetFontSize(size)
+		fill := imagick.NewPixelWand()
+		defer fill.Destroy()
+		fill.SetColor(color)
+		dw.SetFillColor(fill)
+
+		return wand.AnnotateImage(dw, xFloat, yFloat, 0.0, text)
+
 	case "autoGamma":
 		return wand.AutoGammaImage()
 
@@ -136,29 +177,6 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 		}
 		return wand.CharcoalImage(radius, sigma)
 
-	case "composite":
-		if len(args) != 4 {
-			return fmt.Errorf("composite requires 4 arguments: sourceImagePath, composeOperator, x, y")
-		}
-		sourceWand := imagick.NewMagickWand()
-		defer sourceWand.Destroy()
-		if err := sourceWand.ReadImage(args[0]); err != nil {
-			return fmt.Errorf("failed to read source image: %w", err)
-		}
-		compose, err := strconv.ParseInt(args[1], 10, 64)
-		if err != nil {
-			return fmt.Errorf("invalid composeOperator: %w", err)
-		}
-		x, err := strconv.ParseInt(args[2], 10, 64)
-		if err != nil {
-			return fmt.Errorf("invalid x: %w", err)
-		}
-		y, err := strconv.ParseInt(args[3], 10, 64)
-		if err != nil {
-			return fmt.Errorf("invalid y: %w", err)
-		}
-		return wand.CompositeImage(sourceWand, imagick.CompositeOperator(compose), true, int(x), int(y))
-
 	case "colorize":
 		// colorize requires 2 args: color and opacity (0.0 - 1.0)
 		if len(args) != 2 {
@@ -187,6 +205,29 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 		opacityPixel.SetColor(fmt.Sprintf("rgba(0,0,0,%f)", opacity))
 
 		return wand.ColorizeImage(colorPixel, opacityPixel)
+
+	case "composite":
+		if len(args) != 4 {
+			return fmt.Errorf("composite requires 4 arguments: sourceImagePath, composeOperator, x, y")
+		}
+		sourceWand := imagick.NewMagickWand()
+		defer sourceWand.Destroy()
+		if err := sourceWand.ReadImage(args[0]); err != nil {
+			return fmt.Errorf("failed to read source image: %w", err)
+		}
+		compose, err := strconv.ParseInt(args[1], 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid composeOperator: %w", err)
+		}
+		x, err := strconv.ParseInt(args[2], 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid x: %w", err)
+		}
+		y, err := strconv.ParseInt(args[3], 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid y: %w", err)
+		}
+		return wand.CompositeImage(sourceWand, imagick.CompositeOperator(compose), true, int(x), int(y))
 
 	case "contrast":
 		if len(args) != 1 {
@@ -264,8 +305,25 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 		}
 		return wand.EdgeImage(radius)
 
+	case "emboss":
+		if len(args) != 2 {
+			return fmt.Errorf("emboss requires 2 arguments: radius and sigma")
+		}
+		radius, err := strconv.ParseFloat(args[0], 64)
+		if err != nil {
+			return fmt.Errorf("invalid radius: %w", err)
+		}
+		sigma, err := strconv.ParseFloat(args[1], 64)
+		if err != nil {
+			return fmt.Errorf("invalid sigma: %w", err)
+		}
+		return wand.EmbossImage(radius, sigma)
+
 	case "equalize":
 		return wand.EqualizeImage()
+
+	case "enhance":
+		return wand.EnhanceImage()
 
 	case "flip":
 		return wand.FlipImage()
@@ -285,6 +343,34 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 
 	case "grayscale":
 		return wand.SetImageColorspace(imagick.COLORSPACE_GRAY)
+
+	case "level":
+		if len(args) != 3 {
+			return fmt.Errorf("level requires 3 arguments: blackPoint, gamma, whitePoint")
+		}
+		blackPoint, err := strconv.ParseFloat(args[0], 64)
+		if err != nil {
+			return fmt.Errorf("invalid blackPoint: %w", err)
+		}
+		gamma, err := strconv.ParseFloat(args[1], 64)
+		if err != nil {
+			return fmt.Errorf("invalid gamma: %w", err)
+		}
+		whitePoint, err := strconv.ParseFloat(args[2], 64)
+		if err != nil {
+			return fmt.Errorf("invalid whitePoint: %w", err)
+		}
+		return wand.LevelImage(blackPoint, gamma, whitePoint)
+
+	case "medianFilter":
+		if len(args) != 1 {
+			return fmt.Errorf("medianFilter requires 1 argument: radius")
+		}
+		radius, err := strconv.ParseUint(args[0], 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid radius: %w", err)
+		}
+		return wand.StatisticImage(imagick.STATISTIC_MEDIAN, uint(radius), uint(radius))
 
 	case "modulate":
 		// modulate requires 3 args: brightness, saturation, hue
@@ -430,6 +516,16 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 		}
 		return wand.SwirlImage(degrees, imagick.INTERPOLATE_PIXEL_BILINEAR)
 
+	case "threshold":
+		if len(args) != 1 {
+			return fmt.Errorf("threshold requires 1 argument: threshold")
+		}
+		th, err := strconv.ParseFloat(args[0], 64)
+		if err != nil {
+			return fmt.Errorf("invalid threshold value: %w", err)
+		}
+		return wand.ThresholdImage(th)
+
 	case "trim":
 		if len(args) != 1 {
 			return fmt.Errorf("trim requires 1 argument: fuzz")
@@ -439,6 +535,50 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 			return fmt.Errorf("invalid fuzz value: %w", err)
 		}
 		return wand.TrimImage(fuzz)
+
+	case "unsharp":
+		if len(args) != 4 {
+			return fmt.Errorf("unsharp requires 4 arguments: radius, sigma, amount, threshold")
+		}
+		radius, err := strconv.ParseFloat(args[0], 64)
+		if err != nil {
+			return fmt.Errorf("invalid radius: %w", err)
+		}
+		sigma, err := strconv.ParseFloat(args[1], 64)
+		if err != nil {
+			return fmt.Errorf("invalid sigma: %w", err)
+		}
+		amount, err := strconv.ParseFloat(args[2], 64)
+		if err != nil {
+			return fmt.Errorf("invalid amount: %w", err)
+		}
+		threshold, err := strconv.ParseFloat(args[3], 64)
+		if err != nil {
+			return fmt.Errorf("invalid threshold: %w", err)
+		}
+		return wand.UnsharpMaskImage(radius, sigma, amount, threshold)
+
+	case "vignette":
+		if len(args) != 4 {
+			return fmt.Errorf("vignette requires 4 arguments: radius, sigma, x, y")
+		}
+		radius, err := strconv.ParseFloat(args[0], 64)
+		if err != nil {
+			return fmt.Errorf("invalid radius: %w", err)
+		}
+		sigma, err := strconv.ParseFloat(args[1], 64)
+		if err != nil {
+			return fmt.Errorf("invalid sigma: %w", err)
+		}
+		x, err := strconv.ParseInt(args[2], 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid x: %w", err)
+		}
+		y, err := strconv.ParseInt(args[3], 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid y: %w", err)
+		}
+		return wand.VignetteImage(radius, sigma, int(x), int(y))
 
 	default:
 		return fmt.Errorf("unknown command: %s", commandName)
