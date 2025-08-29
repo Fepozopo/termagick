@@ -61,25 +61,13 @@ func main() {
 
 		switch r {
 		case '/':
-			// Present selection. If SelectCommandWithFzf exists it will be used; otherwise
-			// fall back to a simple list prompt.
 			var commandName string
-			if SelectCommandWithFzf != nil {
-				name, err := SelectCommandWithFzf(commands)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "selection error: %v\n", err)
-					continue
-				}
-				commandName = name
-			} else {
-				// Fallback: print commands and ask user to type name
-				fmt.Println("Available commands:")
-				for _, c := range commands {
-					fmt.Println(" -", c.Name)
-				}
-				name, _ := promptLine("Enter command name: ")
-				commandName = name
+			name, err := SelectCommandWithFzf(commands)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "selection error: %v\n", err)
+				continue
 			}
+			commandName = name
 
 			// Find the CommandMeta definition (from commands.go)
 			var selectedCmd CommandMeta

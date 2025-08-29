@@ -28,17 +28,11 @@ A small interactive terminal image editor built in Go that uses ImageMagick (via
 
 ---
 
-## Project Title
-
-termagick
-
----
-
 ## Description
 
 termagick is an interactive, terminal-based image editor. It reads an image into an ImageMagick `MagickWand` and allows you to apply a variety of transformations and filters (blur, sharpen, resize, rotate, posterize, composite, etc.) using interactive prompts.
 
-It ships with in-code metadata describing each command's parameters and validation rules so the CLI can prompt for typed parameters and provide helpful hints. Optionally, it integrates with `fzf` (if installed) to provide a fuzzy command selector.
+It ships with in-code metadata describing each command's parameters and validation rules so the CLI can prompt for typed parameters and provide helpful hints. It integrates with `fzf` to provide a fuzzy command selector.
 
 ---
 
@@ -47,7 +41,7 @@ It ships with in-code metadata describing each command's parameters and validati
 - Interactive terminal workflow for editing images.
 - Metadata-driven command prompts with types, hints and examples.
 - Many built-in operations mapped to ImageMagick functions (blur, resize, sharpen, sepia, posterize, composite, and more).
-- Optional `fzf`-backed command selector for fast, fuzzy command lookup.
+- `fzf`-backed command selector for fast, fuzzy command lookup.
 - Save edited images to arbitrary output files.
 
 ---
@@ -62,7 +56,7 @@ Note: this project uses the `gopkg.in/gographics/imagick.v3` binding which requi
 
 1. Install ImageMagick and pkg-config:
    - `brew install imagemagick pkg-config`
-2. (Optional) Install `fzf` for fuzzy selection:
+2. Install `fzf` for fuzzy selection:
    - `brew install fzf`
 3. Build the binary (see "Build the Go binary" below).
 
@@ -71,7 +65,7 @@ Note: this project uses the `gopkg.in/gographics/imagick.v3` binding which requi
 1. Install OS packages:
    - `sudo apt-get update`
    - `sudo apt-get install -y imagemagick libmagickwand-dev pkg-config build-essential`
-2. (Optional) Install `fzf`:
+2. Install `fzf`:
    - `sudo apt-get install -y fzf` (or install from the project's recommended method)
 3. Build the binary.
 
@@ -79,7 +73,7 @@ Note: this project uses the `gopkg.in/gographics/imagick.v3` binding which requi
 
 1. Install development packages:
    - `sudo dnf install -y ImageMagick ImageMagick-devel pkgconfig`
-2. (Optional) Install `fzf`:
+2. Install `fzf`:
    - `sudo dnf install -y fzf`
 3. Build the binary.
 
@@ -108,7 +102,7 @@ On startup the program loads the input image into memory and presents an interac
 
 Interactive keys:
 
-- `/` — open the command selector (if `fzf` is present it will be used; otherwise you will be shown a list and asked to type a command name).
+- `/` — open the command selector.
 - `s` — save the current in-memory image to a file (you will be prompted for a filename).
 - `q` — quit the program.
 - Other keys — ignored in the current interactive loop.
@@ -174,7 +168,7 @@ The key dependencies for building and running termagick are:
 - Go binding to ImageMagick:
   - `gopkg.in/gographics/imagick.v3` (declared in `go.mod`)
 - Optional:
-  - `fzf` — used for fuzzy command selection. If absent the CLI falls back to a typed prompt.
+  - `fzf` — used for fuzzy command selection.
 
 Files in the repository of note:
 
