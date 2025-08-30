@@ -223,7 +223,7 @@ var commands = []CommandMeta{
 		Name:        "medianFilter",
 		Description: "Apply a median filter to reduce salt-and-pepper noise",
 		Params: []ParamMeta{
-			{Name: "radius", Type: ParamTypeFloat, Required: true, Min: float64Ptr(0.0), Hint: "Radius for the median filter kernel.", Example: "1.0"},
+			{Name: "radius", Type: ParamTypeInt, Required: true, Min: float64Ptr(0.0), Hint: "Radius for the median filter kernel.", Example: "1"},
 		},
 	},
 	{
@@ -287,7 +287,7 @@ var commands = []CommandMeta{
 		Name:        "sepia",
 		Description: "Apply a sepia filter to the image",
 		Params: []ParamMeta{
-			{Name: "threshold", Type: ParamTypeFloat, Required: true, Min: float64Ptr(0.0), Max: float64Ptr(100.0), Hint: "Strength/threshold for sepia toning. Lower = subtle; higher = stronger brown/yellow cast.", Example: "0.8"},
+			{Name: "threshold", Type: ParamTypeFloat, Required: true, Min: float64Ptr(0.0), Max: float64Ptr(100.0), Hint: "Strength/threshold for sepia toning. Lower = subtle; higher = stronger brown/yellow cast.", Example: "80"},
 		},
 	},
 	{
