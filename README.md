@@ -43,6 +43,7 @@ It ships with in-code metadata describing each command's parameters and validati
 - Many built-in operations mapped to ImageMagick functions (blur, resize, sharpen, sepia, posterize, composite, and more).
 - `fzf`-backed command selector for fast, fuzzy command lookup.
 - Save edited images to arbitrary output files.
+- Inline terminal image preview support for compatible terminals (kitty graphics protocol, iTerm2 OSC 1337 inline images, and Sixel-capable terminals). The CLI attempts to display a PNG preview after commands are applied and will fallback between supported protocols when available.
 
 ---
 
@@ -99,6 +100,8 @@ Basic usage:
   - `./termagick path/to/input.jpg`
 
 On startup the program loads the input image into memory and presents an interactive prompt.
+
+If the running terminal supports inline image rendering, termagick will attempt to show an inline PNG preview of the current in-memory image after applying commands. Previewing prefers the kitty graphics protocol (kitty/kitty-compatible terminals), then iTerm2's OSC 1337 inline-file sequence, and finally falls back to Sixel rendering on terminals that support it. Preview output is optional and non-fatal — failures to render a preview are ignored by the main interactive flow.
 
 Interactive keys:
 
@@ -196,3 +199,12 @@ Files in the repository of note:
   - The CLI validates parameters (required/optional, numeric ranges, boolean parsing)… read the prompts carefully and follow examples shown in the prompt hints.
 - fzf not invoked:
   - If you press `/` and see the fallback list prompt, ensure `fzf` is installed and in your `PATH`. The program calls `fzf` directly (see `fzf.go`).
+
+- Preview not appearing or debugging preview issues:
+  - Preview is best-effort and depends on your terminal supporting one of the protocols (kitty, iTerm2 OSC 1337, or Sixel). If no supported protocol is detected, no preview will be shown.
+  - Enable preview debug logging to stderr with `PREVIEW_DEBUG=1`. Debug messages are prefixed with `termagick-preview:` and will show the detection and fallback decisions the previewer makes.
+  - You can influence protocol detection and behavior with environment variables:
+    - `SIXEL_PREVIEW=1` — force-enable Sixel capability detection if your terminal supports Sixel but heuristics do not detect it.
+    - `KITTY_PREVIEW_COLS` and `KITTY_PREVIEW_ROWS` — optional sizing hints used by the kitty graphics placement logic to request a specific render area.
+  - Detection uses common environment hints (for example `KITTY_WINDOW_ID`, `TERM`, `TERM_PROGRAM`, `ITERM_SESSION_ID`, `KONSOLE_VERSION`, and `WT_SESSION`) so ensure your terminal exposes standard variables. If preview fails despite appearing to be supported, enable `PREVIEW_DEBUG` to see why a protocol was skipped or errored.
+  - Previews are non-blocking; failures to render will not interrupt the interactive editor, but the debug logs can help you diagnose and (if needed) force appropriate behavior via the env vars listed above.
