@@ -166,12 +166,20 @@ func main() {
 			fmt.Printf("Saved to %s\n", out)
 
 		case 'o':
-			// Open another image at runtime. Read into a new wand and swap safely.
-			newPath, _ := promptLine("Enter path to image to open (leave empty to cancel): ")
-			if newPath == "" {
-				fmt.Println("open cancelled")
-				continue
+			// Open another image at runtime. Prefer fzf-based file selection; fall back to typed path.
+			selected, selErr := SelectFileWithFzf(".")
+			var newPath string
+			if selErr != nil || selected == "" {
+				// fzf failed, was cancelled, or returned nothing — fall back to a typed path prompt.
+				newPath, _ = promptLine("Enter path to image to open (leave empty to cancel): ")
+				if newPath == "" {
+					fmt.Println("open cancelled")
+					continue
+				}
+			} else {
+				newPath = selected
 			}
+
 			newWand := imagick.NewMagickWand()
 			if err := newWand.ReadImage(newPath); err != nil {
 				fmt.Fprintf(os.Stderr, "failed to read image %s: %v\n", newPath, err)
