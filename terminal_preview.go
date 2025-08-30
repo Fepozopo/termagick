@@ -288,9 +288,9 @@ func sendKittyPNG(data []byte) error {
 
 		if first {
 			// First chunk includes full control keys and placement (c,r).
-			// a=T transmit+display, f=100 PNG, t=d direct payload, C=1 don't move cursor,
+			// a=T transmit+display, f=100 PNG, t=d direct payload,
 			// q=2 suppress responses, c=<cols>, r=<rows> request rendering area.
-			header := fmt.Sprintf("\x1b_Ga=T,f=100,t=d,C=1,q=2,c=%d,r=%d,m=%s;", cols, rows, mVal)
+			header := fmt.Sprintf("\x1b_Ga=T,f=100,t=d,q=2,c=%d,r=%d,m=%s;", cols, rows, mVal)
 			header += chunk + "\x1b\\"
 			if err := writeSeq(header); err != nil {
 				return err
@@ -305,6 +305,10 @@ func sendKittyPNG(data []byte) error {
 			return err
 		}
 	}
+
+	// After the image is transmitted, we must print a newline to ensure the cursor
+	// is advanced past the image area. Otherwise, subsequent text may be obscured.
+	fmt.Println()
 
 	// Done
 	return nil
@@ -322,6 +326,14 @@ func sendInlineImagePNG(data []byte) error {
 	seq := "\x1b]1337;File=inline=1;size=" + fmt.Sprintf("%d", len(data)) + ":" + enc + "\a"
 	n, err := os.Stdout.Write([]byte(seq))
 	debugf("wrote %d bytes to stdout for inline image (err=%v)", n, err)
+
+	// After the image is transmitted, we must print a newline to ensure the cursor
+	// is advanced past the image area. Otherwise, subsequent text may be obscured.
+	// We print multiple newlines to account for the height of the image.
+	for i := 0; i < 20; i++ {
+		fmt.Println()
+	}
+
 	return err
 }
 
@@ -345,6 +357,10 @@ func sendSixelPNG(data []byte) error {
 
 	if err := cmd.Run(); err == nil {
 		debugf("img2sixel succeeded")
+		// Ensure the cursor moves to the next line after the image.
+		for i := 0; i < 20; i++ {
+			fmt.Println()
+		}
 		return nil
 	} else {
 		debugf("img2sixel failed: %v", err)
@@ -357,6 +373,10 @@ func sendSixelPNG(data []byte) error {
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err == nil {
 		debugf("chafa succeeded")
+		// Ensure the cursor moves to the next line after the image.
+		for i := 0; i < 20; i++ {
+			fmt.Println()
+		}
 		return nil
 	} else {
 		debugf("chafa failed: %v", err)
@@ -368,5 +388,11 @@ func sendSixelPNG(data []byte) error {
 	seq := "\x1b]1337;File=name=preview.png;inline=1;size=" + fmt.Sprintf("%d", len(data)) + ":" + enc + "\a"
 	n, err := os.Stdout.Write([]byte(seq))
 	debugf("wrote %d bytes for inline PNG fallback (err=%v)", n, err)
+
+	// Ensure the cursor moves to the next line after the image.
+	for i := 0; i < 20; i++ {
+		fmt.Println()
+	}
+
 	return err
 }
