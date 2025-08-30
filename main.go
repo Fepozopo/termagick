@@ -47,6 +47,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Try to show an initial preview in compatible terminals.
+	// Ignore errors here so preview remains optional.
+	_ = PreviewWand(wand)
+
 	fmt.Println("Terminal Image Editor")
 	fmt.Println("Commands available, press '/' to select one, 's' to save, 'q' to quit")
 
@@ -121,6 +125,8 @@ func main() {
 						continue
 					}
 					fmt.Printf("Applied %s\n", commandName)
+					// Update inline terminal preview if available.
+					_ = PreviewWand(wand)
 					continue
 				}
 			}
@@ -137,6 +143,8 @@ func main() {
 				continue
 			}
 			fmt.Printf("Applied %s\n", commandName)
+			// Update inline terminal preview if available.
+			_ = PreviewWand(wand)
 
 		case 's':
 			out, _ := promptLine("Enter output filename: ")
