@@ -23,6 +23,7 @@ func usageAndExit(prog string) {
 	fmt.Printf("Usage: %s <input-image>\n", prog)
 	fmt.Println("Interactive terminal image editor:")
 	fmt.Println("  /  - select and apply command")
+	fmt.Println("  o  - open another image at runtime")
 	fmt.Println("  s  - save current image")
 	fmt.Println("  q  - quit")
 	os.Exit(1)
@@ -40,8 +41,14 @@ func main() {
 	imagick.Initialize()
 	defer imagick.Terminate()
 
-	wand := imagick.NewMagickWand()
-	defer wand.Destroy()
+	var wand *imagick.MagickWand
+	wand = imagick.NewMagickWand()
+	// Defer a cleanup function that will destroy whatever wand is current at program exit.
+	defer func() {
+		if wand != nil {
+			wand.Destroy()
+		}
+	}()
 	if err := wand.ReadImage(inputImagePath); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to read image %s: %v\n", inputImagePath, err)
 		os.Exit(1)
@@ -52,7 +59,7 @@ func main() {
 	_ = PreviewWand(wand)
 
 	fmt.Println("Terminal Image Editor")
-	fmt.Println("Commands available, press '/' to select one, 's' to save, 'q' to quit")
+	fmt.Println("Commands available, press '/' to select one, 'o' to open a different image, 's' to save, 'q' to quit")
 
 	reader := bufio.NewReader(os.Stdin)
 	for {
@@ -157,6 +164,29 @@ func main() {
 				continue
 			}
 			fmt.Printf("Saved to %s\n", out)
+
+		case 'o':
+			// Open another image at runtime. Read into a new wand and swap safely.
+			newPath, _ := promptLine("Enter path to image to open (leave empty to cancel): ")
+			if newPath == "" {
+				fmt.Println("open cancelled")
+				continue
+			}
+			newWand := imagick.NewMagickWand()
+			if err := newWand.ReadImage(newPath); err != nil {
+				fmt.Fprintf(os.Stderr, "failed to read image %s: %v\n", newPath, err)
+				newWand.Destroy()
+				continue
+			}
+			// Destroy the current wand (if any) and replace it with the newly opened one.
+			if wand != nil {
+				wand.Destroy()
+			}
+			wand = newWand
+			fmt.Printf("Opened %s\n", newPath)
+			// Update inline terminal preview if available.
+			_ = PreviewWand(wand)
+			continue
 
 		case 'q':
 			fmt.Println("Exiting...")
