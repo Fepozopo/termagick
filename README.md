@@ -51,6 +51,10 @@ The CLI ships with built-in command metadata (see `commands.go`) and provides he
 
 ## Installation
 
+---
+
+## Building from Source
+
 Prerequisites: a working Go toolchain and ImageMagick with development headers/libraries installed.
 
 > Note: `gopkg.in/gographics/imagick.v3` requires linking to the native ImageMagick libraries. Install native dependencies for your platform.
@@ -170,10 +174,10 @@ Preview / terminal rendering notes:
 
 ## Dependencies
 
-- Go toolchain (modules; see `go.mod`).
-- ImageMagick native libraries and development headers.
-- Go binding:
-  - `gopkg.in/gographics/imagick.v3` (declared in `go.mod`).
+### Run Dependencies
+
+Note, there are no true runtime dependencies; if `fzf` is not installed, the program falls back to typed prompts. Similarly, if your terminal does not support inline image protocols, the program continues to function without previews.
+
 - Optional but recommended:
   - `fzf` — used for fuzzy selection of commands and files.
   - Terminal with support for one of the following image protocols for inline previews:
@@ -183,6 +187,13 @@ Preview / terminal rendering notes:
   - Optional CLI tools for preview fallbacks (if your terminal does not support the above protocols):
     - `chafa`
     - `img2sixel`
+
+### Build Dependencies
+
+- Go toolchain (modules; see `go.mod`).
+- ImageMagick native libraries and development headers.
+- Go binding:
+  - `gopkg.in/gographics/imagick.v3` (declared in `go.mod`).
 
 Files of interest in this repo:
 
