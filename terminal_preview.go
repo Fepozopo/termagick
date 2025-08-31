@@ -27,7 +27,13 @@ import (
 //     the kitty graphics protocol (chunked base64 inside ESC _G ... ESC \).
 //   - Else if iTerm2 is detected (TERM_PROGRAM == "iTerm.app" || ITERM_SESSION_ID present),
 //     the PNG is sent using the iTerm2 OSC 1337 inline file sequence.
-//   - If neither is detected, PreviewWand returns an error indicating no supported terminal.
+//   - Else if other terminals known to support inline images (WezTerm, Warp, Tabby, VSCode, etc)
+//     the same iTerm2-style OSC 1337 sequence is used.
+//   - Else if a terminal likely to support Sixel graphics is detected (foot, Windows Terminal, st with sixel patch, etc),
+//     the PNG is piped to an external sixel renderer (img2sixel or chafa).
+//   - Else, if chafa is available on PATH, it will be invoked to render a terminal-friendly approximation
+//     even for terminals that don't implement the above protocols.
+//   - If none is available, PreviewWand returns an error indicating no supported terminal.
 //
 // Notes:
 //   - The function clones the provided wand to set the image format to PNG without mutating
@@ -74,7 +80,7 @@ func isKitty() bool {
 	return false
 }
 
-// Detects terminals that implement the generic \"inline images\" OSC protocol
+// Detects terminals that implement the generic "inline images" OSC protocol
 // (iTerm2 style) — many modern terminal emulators (WezTerm, Warp, Tabby, VSCode's terminal,
 // Rio, Hyper, Bobcat and others) implement that or compatible behavior.
 // We use a heuristic based on TERM_PROGRAM and common TERM substrings.
@@ -117,15 +123,29 @@ func isSixelCapable() bool {
 	return false
 }
 
+// hasChafa reports whether the external 'chafa' binary is available in PATH.
+// We treat chafa as a usable fallback for terminals that don't implement inline
+// or sixel protocols but can still display block/character graphics.
+func hasChafa() bool {
+	if os.Getenv("CHAFAPREVIEW") == "1" {
+		return true
+	}
+	if _, err := exec.LookPath("chafa"); err == nil {
+		return true
+	}
+	return false
+}
+
 // PreviewSupported returns true if the running environment likely supports a terminal inline preview.
+// We consider chafa availability as a valid fallback even if no inline/sixel protocol is detected.
 func PreviewSupported() bool {
-	supported := isKitty() || isInlineImageCapable() || isSixelCapable()
-	debugf("PreviewSupported -> %v (kitty=%v inline=%v sixel=%v)", supported, isKitty(), isInlineImageCapable(), isSixelCapable())
+	supported := isKitty() || isInlineImageCapable() || isSixelCapable() || hasChafa()
+	debugf("PreviewSupported -> %v (kitty=%v inline=%v sixel=%v chafa=%v)", supported, isKitty(), isInlineImageCapable(), isSixelCapable(), hasChafa())
 	return supported
 }
 
 // PreviewWand takes a MagickWand and tries to display it inline in the terminal.
-// It prefers kitty unicode/graphics placement, then the inline images OSC, then Sixel.
+// It prefers kitty unicode/graphics placement, then the inline images OSC, then Sixel, then chafa.
 // Returns error if unsupported or on failure.
 func PreviewWand(wand *imagick.MagickWand) error {
 	if wand == nil {
@@ -133,7 +153,7 @@ func PreviewWand(wand *imagick.MagickWand) error {
 	}
 
 	// Log entry and detection state when debugging is enabled
-	debugf("PreviewWand called (supported=%v, KITTY=%v, INLINE=%v, SIXEL=%v)", PreviewSupported(), isKitty(), isInlineImageCapable(), isSixelCapable())
+	debugf("PreviewWand called (supported=%v, KITTY=%v, INLINE=%v, SIXEL=%v, CHAF A=%v)", PreviewSupported(), isKitty(), isInlineImageCapable(), isSixelCapable(), hasChafa())
 
 	if !PreviewSupported() {
 		return fmt.Errorf("no supported terminal preview protocol detected")
@@ -186,6 +206,16 @@ func PreviewWand(wand *imagick.MagickWand) error {
 					debugf("sixel also failed: %v", err3)
 				}
 			}
+			// fallback to chafa if available
+			if hasChafa() {
+				debugf("falling back to chafa rendering")
+				if err4 := sendChafaPNG(blob); err4 == nil {
+					debugf("chafa succeeded after kitty failure")
+					return nil
+				} else {
+					debugf("chafa also failed: %v", err4)
+				}
+			}
 			return fmt.Errorf("kitty preview failed: %w", err)
 		}
 		debugf("kitty protocol succeeded")
@@ -207,6 +237,16 @@ func PreviewWand(wand *imagick.MagickWand) error {
 					debugf("sixel also failed: %v", err2)
 				}
 			}
+			// fallback to chafa if available
+			if hasChafa() {
+				debugf("falling back to chafa rendering from inline image failure")
+				if err3 := sendChafaPNG(blob); err3 == nil {
+					debugf("chafa succeeded after inline image failure")
+					return nil
+				} else {
+					debugf("chafa also failed: %v", err3)
+				}
+			}
 			return fmt.Errorf("inline image preview failed: %w", err)
 		}
 		debugf("inline image OSC succeeded")
@@ -216,9 +256,30 @@ func PreviewWand(wand *imagick.MagickWand) error {
 	// Fallback: try Sixel-capable terminals
 	if isSixelCapable() {
 		if err := sendSixelPNG(blob); err != nil {
+			// If sixel rendering fails, but chafa is available, try chafa as a fallback.
+			if hasChafa() {
+				debugf("sixel failed; attempting chafa fallback")
+				if err2 := sendChafaPNG(blob); err2 == nil {
+					debugf("chafa fallback succeeded after sixel failure")
+					return nil
+				} else {
+					debugf("chafa fallback also failed: %v", err2)
+				}
+			}
 			return fmt.Errorf("sixel preview failed: %w", err)
 		}
 		return nil
+	}
+
+	// If chafa is available, try it even if no protocol heuristics matched.
+	if hasChafa() {
+		debugf("no protocol matched, but chafa detected; attempting chafa rendering")
+		if err := sendChafaPNG(blob); err == nil {
+			debugf("chafa rendering succeeded")
+			return nil
+		} else {
+			debugf("chafa rendering failed: %v", err)
+		}
 	}
 
 	return fmt.Errorf("no preview protocol matched")
@@ -367,11 +428,7 @@ func sendSixelPNG(data []byte) error {
 	}
 
 	// If img2sixel isn't available, try chafa as a fallback (chafa supports multiple terminals).
-	cmd = exec.Command("chafa", "--fill=block", "--symbols=block", "-s", "auto", "-")
-	cmd.Stdin = bytes.NewReader(data)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err == nil {
+	if err := sendChafaPNG(data); err == nil {
 		debugf("chafa succeeded")
 		// Ensure the cursor moves to the next line after the image.
 		for i := 0; i < 20; i++ {
@@ -395,4 +452,67 @@ func sendSixelPNG(data []byte) error {
 	}
 
 	return err
+}
+
+// sendChafaPNG invokes chafa to render the provided PNG bytes to stdout.
+// It attempts to choose reasonable flags to produce a block-symbol rendering that
+// works in many terminals. The function returns an error if chafa is not present or fails.
+func sendChafaPNG(data []byte) error {
+	if len(data) == 0 {
+		return fmt.Errorf("no data")
+	}
+
+	// Allow an environment override to skip attempting chafa when explicitly disabled.
+	if os.Getenv("NO_CHAFA") == "1" {
+		return fmt.Errorf("chafa usage disabled via NO_CHAFA=1")
+	}
+
+	// Ensure chafa exists
+	if _, err := exec.LookPath("chafa"); err != nil {
+		return fmt.Errorf("chafa not found in PATH: %w", err)
+	}
+
+	debugf("sendChafaPNG invoking chafa for %d bytes", len(data))
+
+	// Determine chafa args. Use block fill and symbols for dense output.
+	// Default size is 80x40; user can override via CHAFA_SIZE.
+	args := []string{"--fill=block", "--symbols=block", "-s", "80x40", "-"}
+
+	if v := os.Getenv("CHAFA_SIZE"); v != "" {
+		// If the user provides a size override, pass it through to -s.
+		args = []string{"--fill=block", "--symbols=block", "-s", v, "-"}
+	}
+
+	// Allow custom fill/symbol selection via env (optional)
+	if f := os.Getenv("CHAFA_FILL"); f != "" {
+		// replace --fill value
+		for i, a := range args {
+			if strings.HasPrefix(a, "--fill=") {
+				args[i] = "--fill=" + f
+			}
+		}
+	}
+	if s := os.Getenv("CHAFA_SYMBOLS"); s != "" {
+		for i, a := range args {
+			if strings.HasPrefix(a, "--symbols=") {
+				args[i] = "--symbols=" + s
+			}
+		}
+	}
+
+	cmd := exec.Command("chafa", args...)
+	cmd.Stdin = bytes.NewReader(data)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("chafa failed: %w", err)
+	}
+
+	// Ensure adequate spacing after the image so subsequent text isn't overwritten.
+	for i := 0; i < 20; i++ {
+		fmt.Println()
+	}
+
+	return nil
 }
