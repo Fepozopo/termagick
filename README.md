@@ -42,8 +42,8 @@ The CLI ships with built-in command metadata (see `commands.go`) and provides he
 - At startup, when no input path is provided, termagick now attempts an `fzf`-backed file selection (`SelectFileWithFzf`). If `fzf` is not available or the selection is cancelled, the program falls back to a typed prompt.
 - Open another image at runtime with the `o` key (also prefers `fzf`).
 - Metadata-driven command prompts with types, hints and examples. Prompts are improved to show types (including enum options) and the metadata tooltip before prompting for parameters.
-- `fzf`-backed command selector for fast, fuzzy command lookup (`SelectCommandWithFzf` in `fzf.go`).
-- Inline terminal image preview support for compatible terminals (kitty graphics protocol, iTerm2 OSC 1337 inline images, and Sixel-capable terminals). Previewing prefers kitty, then iTerm2, then Sixel.
+- `fzf`-backed command selector for fast, fuzzy command lookup (`SelectCommandWithFzf` in `fzf.go`). If `fzf` is not available, falls back to a typed prompt.
+- Inline terminal image preview support for compatible terminals (kitty graphics protocol, iTerm2 OSC 1337 inline images, and Sixel-capable terminals). Previewing prefers kitty, then iTerm2, then Sixel. If none are supported, it attempts to use chafa.
 - Save edited images to arbitrary output files.
 - Preview is non-blocking and best-effort; failures do not interrupt the interactive flow.
 
@@ -107,7 +107,7 @@ On startup the program loads the chosen image into memory and presents an intera
 
 Interactive keys (in the interactive prompt):
 
-- `/` — open the command selector (fzf-backed if available).
+- `/` — open the command selector (fzf-backed if available). Falls back to a typed prompt if `fzf` is not found.
 - `o` — open another image at runtime (prefers `fzf` for selection; falls back to typed path).
 - `s` — save the current in-memory image to a file (you will be prompted for a filename).
 - `q` — quit the program.
