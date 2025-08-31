@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"gopkg.in/gographics/imagick.v3/imagick"
@@ -87,16 +88,67 @@ func main() {
 		case '/':
 			var commandName string
 			name, err := SelectCommandWithFzf(commands)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "selection error: %v\n", err)
-				continue
+			if err != nil || name == "" {
+				// fzf unavailable, returned nothing, or errored — fall back to a textual selection list.
+				fmt.Println("Command selection (fallback):")
+				for i, c := range commands {
+					fmt.Printf("  %d) %s - %s\n", i+1, c.Name, c.Description)
+				}
+				selection, _ := promptLine("Enter number or command name (leave empty to cancel): ")
+				if selection == "" {
+					fmt.Println("selection cancelled")
+					continue
+				}
+				// Try numeric selection first (1-based)
+				if idx, perr := strconv.Atoi(selection); perr == nil {
+					if idx < 1 || idx > len(commands) {
+						fmt.Println("invalid selection")
+						continue
+					}
+					commandName = commands[idx-1].Name
+				} else {
+					// Treat input as command name — perform case-insensitive exact or prefix matching.
+					selLower := strings.ToLower(selection)
+					found := ""
+					// exact (case-insensitive) match
+					for _, c := range commands {
+						if strings.ToLower(c.Name) == selLower {
+							found = c.Name
+							break
+						}
+					}
+					// if not found, try prefix matches (case-insensitive)
+					if found == "" {
+						matches := []string{}
+						for _, c := range commands {
+							if strings.HasPrefix(strings.ToLower(c.Name), selLower) {
+								matches = append(matches, c.Name)
+							}
+						}
+						if len(matches) == 1 {
+							found = matches[0]
+						} else if len(matches) > 1 {
+							fmt.Println("ambiguous selection, candidates:")
+							for _, m := range matches {
+								fmt.Println("  " + m)
+							}
+							continue
+						}
+					}
+					if found == "" {
+						fmt.Printf("unknown command: %s\n", selection)
+						continue
+					}
+					commandName = found
+				}
+			} else {
+				commandName = name
 			}
-			commandName = name
 
 			// Find the CommandMeta definition (from commands.go)
 			var selectedCmd CommandMeta
 			for _, cmd := range commands {
-				if cmd.Name == commandName {
+				if strings.EqualFold(cmd.Name, commandName) {
 					selectedCmd = cmd
 					break
 				}
