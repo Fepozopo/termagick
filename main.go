@@ -30,10 +30,23 @@ func usageAndExit(prog string) {
 }
 
 func main() {
-	if len(os.Args) < 2 {
-		usageAndExit(os.Args[0])
+	var inputImagePath string
+	if len(os.Args) >= 2 {
+		inputImagePath = os.Args[1]
+	} else {
+		// Prefer fzf-based file selection when no argument is provided.
+		// If fzf is unavailable, cancelled, or returns nothing, fall back to a typed prompt.
+		selected, selErr := SelectFileWithFzf(".")
+		if selErr != nil || selected == "" {
+			p, _ := promptLine("Enter input image path (leave empty to exit): ")
+			if p == "" {
+				usageAndExit(os.Args[0])
+			}
+			inputImagePath = p
+		} else {
+			inputImagePath = selected
+		}
 	}
-	inputImagePath := os.Args[1]
 
 	// Use in-code commands metadata (compile-time)
 	store := NewMetaStore(commands)
