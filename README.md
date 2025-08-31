@@ -176,6 +176,13 @@ Preview / terminal rendering notes:
   - `gopkg.in/gographics/imagick.v3` (declared in `go.mod`).
 - Optional but recommended:
   - `fzf` — used for fuzzy selection of commands and files.
+  - Terminal with support for one of the following image protocols for inline previews:
+    - `kitty` graphics protocol
+    - `iTerm2` inline images (OSC 1337)
+    - `sixel` (e.g. `mlterm`, `xterm` with sixel support, `mintty`, etc.)
+  - Optional CLI tools for preview fallbacks (if your terminal does not support the above protocols):
+    - `chafa`
+    - `img2sixel`
 
 Files of interest in this repo:
 
