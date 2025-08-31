@@ -27,6 +27,10 @@ import (
 //     the kitty graphics protocol (chunked base64 inside ESC _G ... ESC \).
 //   - Else if iTerm2 is detected (TERM_PROGRAM == "iTerm.app" || ITERM_SESSION_ID present),
 //     the PNG is sent using the iTerm2 OSC 1337 inline file sequence.
+//   - Else if other terminals known to support inline images (WezTerm, Warp, Tabby, VSCode, etc)
+//     the same iTerm2-style OSC 1337 sequence is used.
+//   - Else if a terminal likely to support Sixel graphics is detected (foot, Windows Terminal, st with sixel patch, etc),
+//     the PNG is piped to an external sixel renderer (img2sixel or chafa).
 //   - If neither is detected, PreviewWand returns an error indicating no supported terminal.
 //
 // Notes:
