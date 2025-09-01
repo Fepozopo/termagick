@@ -77,18 +77,20 @@ Note, there are no true runtime dependencies; if `fzf` is not installed, the pro
 ## Installation
 
 Install with:
-`bash
-go install github.com/Fepozopo/termagick@latest
-`
 
-If ImageMagick is installed and the Go toolchain is set up, this will install it to your `GOBIN` if set. Otherwise, it will install to `$GOPATH/bin` or `$HOME/go/bin`.
+```bash
+go install github.com/Fepozopo/termagick@latest
+```
+
+This will install it to your `GOBIN` if set. Otherwise, it will install to `$GOPATH/bin` or `$HOME/go/bin`.
 
 You may have to manually set the following environment variables so the Go linker can find the C libraries for ImageMagick.
-`bash
+
+```bash
 export CGO_CFLAGS="$(pkg-config --cflags MagickWand-7.Q16HDRI)"
 export CGO_LDFLAGS="$(pkg-config --libs MagickWand-7.Q16HDRI)"
 go install github.com/Fepozopo/termagick@latest
-`
+```
 
 ---
 
