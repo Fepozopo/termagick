@@ -1,23 +1,150 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
+	"sort"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/blang/semver"
 	"github.com/rhysd/go-github-selfupdate/selfupdate"
 )
 
-var Version = "0.1.0"
+var Version = "0.1.1"
+
+// detectLatestFallback queries the GitHub Releases API and returns a best-match
+// release struct compatible with selfupdate.Release. It prefers published,
+// non-prerelease releases with semver-compliant tag names and returns the highest
+// semver it can find. If no suitable release is found it returns (nil, false, nil).
+func detectLatestFallback(repo string) (*selfupdate.Release, bool, error) {
+	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/releases", repo)
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get(apiURL)
+	if err != nil {
+		return nil, false, fmt.Errorf("github API request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := ioutil.ReadAll(resp.Body)
+		return nil, false, fmt.Errorf("github API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, false, fmt.Errorf("failed reading github response: %w", err)
+	}
+
+	// Minimal struct to parse releases JSON
+	var releases []struct {
+		TagName    string `json:"tag_name"`
+		Name       string `json:"name"`
+		Draft      bool   `json:"draft"`
+		Prerelease bool   `json:"prerelease"`
+		Assets     []struct {
+			Name               string `json:"name"`
+			BrowserDownloadURL string `json:"browser_download_url"`
+		} `json:"assets"`
+	}
+	if err := json.Unmarshal(body, &releases); err != nil {
+		return nil, false, fmt.Errorf("failed to decode github releases: %w", err)
+	}
+
+	type candidate struct {
+		ver      semver.Version
+		tag      string
+		assetURL string
+		name     string
+	}
+
+	var candidates []candidate
+
+	// regex to find semver substring like v1.2.3 or 1.2.3 inside tag name
+	semverRe := regexp.MustCompile(`v?\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?`)
+
+	for _, r := range releases {
+		if r.Draft || r.Prerelease {
+			continue
+		}
+		tag := r.TagName
+		match := semverRe.FindString(tag)
+		if match == "" {
+			// try the release name as a fallback
+			match = semverRe.FindString(r.Name)
+			if match == "" {
+				continue
+			}
+		}
+		// normalize to start with v if missing (semver.Parse accepts both but keep consistent)
+		verStr := match
+		// semver.Parse expects no leading 'v' for github.com/blang/semver, but it supports v-prefixed too.
+		v, perr := semver.Parse(verStr)
+		if perr != nil {
+			// try stripping leading 'v'
+			verStr = strings.TrimPrefix(match, "v")
+			v, perr = semver.Parse(verStr)
+			if perr != nil {
+				continue
+			}
+		}
+		assetURL := ""
+		// pick first available asset (prefer ones that look like binaries)
+		for _, a := range r.Assets {
+			nameLower := strings.ToLower(a.Name)
+			if strings.Contains(nameLower, "darwin") || strings.Contains(nameLower, "linux") || strings.Contains(nameLower, "windows") || strings.Contains(nameLower, "amd64") || strings.Contains(nameLower, "arm64") {
+				assetURL = a.BrowserDownloadURL
+				break
+			}
+			// fallback to first asset if nothing matches
+			if assetURL == "" {
+				assetURL = a.BrowserDownloadURL
+			}
+		}
+		candidates = append(candidates, candidate{ver: v, tag: tag, assetURL: assetURL, name: r.Name})
+	}
+
+	if len(candidates) == 0 {
+		return nil, false, nil
+	}
+
+	// pick the highest semver
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].ver.GT(candidates[j].ver)
+	})
+	best := candidates[0]
+
+	// Build a selfupdate.Release-like struct (only include fields present in the actual type)
+	r := &selfupdate.Release{
+		Version:  best.ver,
+		AssetURL: best.assetURL,
+	}
+	return r, true, nil
+}
 
 func checkForUpdates() error {
 	const repo = "Fepozopo/termagick"
-	latest, found, err := selfupdate.DetectLatest(repo)
+
+	// Use the GitHub API fallback detector which is tolerant of tag naming.
+	latest, found, err := detectLatestFallback(repo)
+	fmt.Printf("Current version: %s\n", Version)
+	fmt.Printf("Checking for updates in %s...\n", repo)
+	fmt.Printf("Found release: %v\n", found)
 	if err != nil {
 		return fmt.Errorf("update check failed: %w", err)
+	}
+	if latest == nil {
+		fmt.Println("No release information available from GitHub.")
+	}
+
+	if latest != nil {
+		fmt.Printf("Latest version: %s\n", latest.Version)
 	}
 
 	currentVer, parseErr := semver.Parse(Version)

@@ -263,13 +263,10 @@ func main() {
 
 		case 'u':
 			// Trigger an update check (runs the goroutine in checkForUpdates)
-			fmt.Println("Checking for updates...")
 			err := checkForUpdates()
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "update check error: %v\n", err)
 			}
-			// Note: If an update was applied, the user must restart the application.
-			// We do not attempt to restart automatically.
 			continue
 
 		case 'q':
