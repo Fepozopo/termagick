@@ -18,8 +18,9 @@ func checkForUpdates() error {
 	}
 
 	currentVer, _ := semver.Parse(Version)
-	if !found || latest.Version.Equals(currentVer) {
-		fmt.Printf("You are already running the latest version: %s.\n", latest.Version)
+	// If no release was found or the returned release is nil, treat as up-to-date.
+	if !found || latest == nil || latest.Version.Equals(currentVer) {
+		fmt.Printf("You are already running the latest version: %s.\n", currentVer)
 		return nil
 	}
 	fmt.Printf("A new version (%s) is available.\n", latest.Version)
@@ -30,7 +31,7 @@ func checkForUpdates() error {
 		return fmt.Errorf("could not locate executable: %w", err)
 	}
 	if err := selfupdate.UpdateTo(latest.AssetURL, exe); err != nil {
-		return fmt.Errorf("could not locate executable: %w", err)
+		return fmt.Errorf("update failed: %w", err)
 	}
 	fmt.Printf("Successfully updated to version %s. Please restart the application.\n", latest.Version)
 	return nil
