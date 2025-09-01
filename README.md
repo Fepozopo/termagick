@@ -20,6 +20,7 @@ This repository contains the terminal UI and the command metadata used to presen
   - Interactive keys (including `o` to open another image)
   - Command invocation and improved prompts
   - Example session
+- Updates & check-for-updates
 - Configuration & Metadata
 - Dependencies
 - Troubleshooting
@@ -46,6 +47,7 @@ The CLI ships with built-in command metadata (see `commands.go`) and provides he
 - Inline terminal image preview support for compatible terminals (kitty graphics protocol, iTerm2 OSC 1337 inline images, and Sixel-capable terminals). Previewing prefers kitty, then iTerm2, then Sixel. If none are supported, it attempts to use chafa.
 - Save edited images to arbitrary output files.
 - Preview is non-blocking and best-effort; failures do not interrupt the interactive flow.
+- Check-for-updates support triggered from the interactive UI (`u` key). See "Updates & check-for-updates" below for details.
 
 ---
 
@@ -114,6 +116,7 @@ Interactive keys (in the interactive prompt):
 - `/` — open the command selector (fzf-backed if available). Falls back to a typed prompt if `fzf` is not found.
 - `o` — open another image at runtime (prefers `fzf` for selection; falls back to typed path).
 - `s` — save the current in-memory image to a file (you will be prompted for a filename).
+- `u` — check for updates (see "Updates & check-for-updates").
 - `q` — quit the program.
 - Other keys — ignored in the current interactive loop.
 
@@ -148,6 +151,30 @@ Example session (conceptual):
   - Press `s`, enter `output.jpg`
   - Program prints `Saved to output.jpg`
   - Press `q` to exit
+
+---
+
+## Updates & check-for-updates
+
+termagick includes a built-in update checker and an automatic updater helper. You can trigger an update check interactively by pressing the `u` key. The update logic:
+
+- The running binary has a `Version` string (a `var Version = "..."` in `update.go`) that indicates the current version.
+- When you trigger an update check, the program:
+  - Queries the GitHub Releases API for releases of the repository `Fepozopo/termagick`.
+  - Uses tolerant semver detection to find the highest valid semver release (it tolerates tags like `v1.2.3` or `1.2.3` and tries to extract semver substrings from the tag or release name).
+  - Prefers published, non-prerelease, non-draft releases.
+  - From the selected release, it attempts to pick a downloadable asset. The detector prefers assets whose names contain platform/arch hints (e.g. `darwin`, `linux`, `windows`, `amd64`, `arm64`) and otherwise falls back to the first asset.
+- If a newer release with a downloadable asset is found:
+  - The user is prompted to confirm the update (a simple `y/N` prompt).
+  - On confirmation, the updater downloads the asset and tries to replace the running executable using a self-update helper.
+  - After a successful update the updater attempts to restart the application by executing the new binary (via `syscall.Exec`). If that fails it will try to spawn the new binary as a child process, and if that also fails it informs the user to restart manually.
+- If the release does not include a usable asset, the program informs you and instructs you to download manually from the releases page.
+- If the `Version` string in the running binary is not parseable as semver, the updater will warn but still attempt to compare and detect newer releases using the release semver values.
+
+Privacy & safety notes:
+
+- The update check makes unauthenticated requests to the public GitHub Releases API. It does not upload usage data.
+- The automatic update process replaces the running binary. If you prefer not to allow this, decline the update prompt or download releases manually from the GitHub releases page.
 
 ---
 
@@ -197,12 +224,13 @@ Note, there are no true runtime dependencies; if `fzf` is not installed, the pro
 
 Files of interest in this repo:
 
-- `main.go` — main interactive loop, startup file-selection behavior, and key handling (including the `o` key to open another image).
+- `main.go` — main interactive loop, startup file-selection behavior, and key handling (including the `o` key to open another image and `u` to check for updates).
 - `commands.go` — built-in command metadata.
 - `meta.go` — metadata helpers, `MetaStore`, JSON loading and validation helpers.
 - `imagemagick.go` — mapping from command names + args to ImageMagick `MagickWand` calls.
 - `fzf.go` — `fzf` integration for command and file selection.
 - `terminal_preview.go` — inline preview helpers and protocol detection.
+- `update.go` — update checking and self-update logic (GitHub Releases detection, asset selection, prompting, and replace/restart behavior).
 
 ---
 
@@ -221,6 +249,11 @@ Files of interest in this repo:
   - Previews depend on terminal protocol support and environment variables. Use `PREVIEW_DEBUG=1` to see diagnostic output from the previewer.
   - If your terminal supports Sixel but detection fails, set `SIXEL_PREVIEW=1` to force-enable it.
   - Kitty placement size can be influenced with `KITTY_PREVIEW_COLS` / `KITTY_PREVIEW_ROWS`.
+- Update check / auto-update issues:
+  - The update checker requires network access to `api.github.com` to query releases.
+  - Automatic updates require a downloadable asset attached to the GitHub release. If the release has no suitable asset, the updater will instruct you to download manually.
+  - If the automatic restart fails after updating, the updater will print instructions; you can restart manually.
+  - Confirm the release assets include platform/arch hints in their filenames so the asset selection logic can pick a suitable binary.
 
 ---
 
@@ -229,6 +262,8 @@ Files of interest in this repo:
 Contributions are welcome. If you're adding commands, prefer adding metadata entries to `commands.go` (or provide a JSON metadata file and adjust the program to load it). When adding commands, include descriptive `Description`, `Params`, and validation metadata so the CLI can present clear prompts.
 
 If you'd like to change startup behavior, note that `main.go` now prefers `SelectFileWithFzf` when invoked without an argument. Adjust or extend that behavior as needed.
+
+If you modify the update logic or release artifact naming, update the documentation above so maintainers know how to publish releases that work with the in-app updater.
 
 ---
 
