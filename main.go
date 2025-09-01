@@ -26,6 +26,7 @@ func usageAndExit(prog string) {
 	fmt.Println("  /  - select and apply command")
 	fmt.Println("  o  - open another image at runtime")
 	fmt.Println("  s  - save current image")
+	fmt.Println("  u  - check for updates")
 	fmt.Println("  q  - quit")
 	os.Exit(1)
 }
@@ -35,18 +36,8 @@ func main() {
 	if len(os.Args) >= 2 {
 		inputImagePath = os.Args[1]
 	} else {
-		// Prefer fzf-based file selection when no argument is provided.
-		// If fzf is unavailable, cancelled, or returns nothing, fall back to a typed prompt.
-		selected, selErr := SelectFileWithFzf(".")
-		if selErr != nil || selected == "" {
-			p, _ := promptLine("Enter input image path (leave empty to exit): ")
-			if p == "" {
-				usageAndExit(os.Args[0])
-			}
-			inputImagePath = p
-		} else {
-			inputImagePath = selected
-		}
+		// Show usage information if no input image path is provided.
+		inputImagePath = ""
 	}
 
 	// Use in-code commands metadata (compile-time)
@@ -56,24 +47,29 @@ func main() {
 	defer imagick.Terminate()
 
 	var wand *imagick.MagickWand
-	wand = imagick.NewMagickWand()
-	// Defer a cleanup function that will destroy whatever wand is current at program exit.
-	defer func() {
-		if wand != nil {
-			wand.Destroy()
+	// If an input path was provided, create a wand and read it. Otherwise leave wand nil.
+	if inputImagePath != "" {
+		wand = imagick.NewMagickWand()
+		// Defer a cleanup function that will destroy whatever wand is current at program exit.
+		defer func() {
+			if wand != nil {
+				wand.Destroy()
+			}
+		}()
+		if err := wand.ReadImage(inputImagePath); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to read image %s: %v\n", inputImagePath, err)
+			os.Exit(1)
 		}
-	}()
-	if err := wand.ReadImage(inputImagePath); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to read image %s: %v\n", inputImagePath, err)
-		os.Exit(1)
+
+		// Try to show an initial preview in compatible terminals.
+		// Ignore errors here so preview remains optional.
+		_ = PreviewWand(wand)
+	} else {
+		wand = nil
 	}
 
-	// Try to show an initial preview in compatible terminals.
-	// Ignore errors here so preview remains optional.
-	_ = PreviewWand(wand)
-
 	fmt.Println("Terminal Image Editor")
-	fmt.Println("Commands available, press '/' to select one, 'o' to open a different image, 's' to save, 'q' to quit")
+	fmt.Println("Commands available, press '/' to select one, 'o' to open a different image, 's' to save, 'u' to check for updates, 'q' to quit")
 
 	reader := bufio.NewReader(os.Stdin)
 	for {
@@ -86,6 +82,10 @@ func main() {
 
 		switch r {
 		case '/':
+			if wand == nil {
+				fmt.Println("No image loaded. Press 'o' to open an image first, or provide an image path as the first argument.")
+				continue
+			}
 			var commandName string
 			name, err := SelectCommandWithFzf(commands)
 			if err != nil || name == "" {
@@ -259,6 +259,14 @@ func main() {
 			fmt.Printf("Opened %s\n", newPath)
 			// Update inline terminal preview if available.
 			_ = PreviewWand(wand)
+			continue
+
+		case 'u':
+			// Trigger an update check (runs the goroutine in checkForUpdates)
+			err := checkForUpdates()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "update check error: %v\n", err)
+			}
 			continue
 
 		case 'q':
