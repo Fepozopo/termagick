@@ -51,7 +51,44 @@ The CLI ships with built-in command metadata (see `commands.go`) and provides he
 
 ---
 
+## Dependencies
+
+### Run Dependencies
+
+Note, there are no true runtime dependencies; if `fzf` is not installed, the program falls back to typed prompts. Similarly, if your terminal does not support inline image protocols, the program continues to function without previews.
+
+- Optional but recommended:
+  - `fzf` — used for fuzzy selection of commands and files.
+  - Terminal with support for one of the following image protocols for inline previews:
+    - `kitty` graphics protocol
+    - `iTerm2` inline images (OSC 1337)
+    - `sixel` (e.g. `mlterm`, `xterm` with sixel support, `mintty`, etc.)
+  - Optional CLI tools for preview fallbacks (if your terminal does not support the above protocols):
+    - `chafa`
+    - `img2sixel`
+
+### Installation/Build Dependencies
+
+- Go toolchain installed.
+- ImageMagick version 7.X installed.
+
+---
+
 ## Installation
+
+Install with:
+`bash
+go install github.com/Fepozopo/termagick@latest
+`
+
+If ImageMagick is installed and the Go toolchain is set up, this will install it to your `GOBIN` if set. Otherwise, it will install to `$GOPATH/bin` or `$HOME/go/bin`.
+
+You may have to manually set the following environment variables so the Go linker can find the C libraries for ImageMagick.
+`bash
+export CGO_CFLAGS="$(pkg-config --cflags MagickWand-7.Q16HDRI)"
+export CGO_LDFLAGS="$(pkg-config --libs MagickWand-7.Q16HDRI)"
+go install github.com/Fepozopo/termagick@latest
+`
 
 ---
 
@@ -196,41 +233,6 @@ Preview / terminal rendering notes:
   - `SIXEL_PREVIEW=1` — force-enable Sixel detection if your terminal supports Sixel but heuristics miss it.
   - `KITTY_PREVIEW_COLS` / `KITTY_PREVIEW_ROWS` — sizing hints for kitty placement logic.
 - Preview-related logic is implemented in `terminal_preview.go`. Debug logging and detection follow environment heuristics and common terminal environment variables.
-
----
-
-## Dependencies
-
-### Run Dependencies
-
-Note, there are no true runtime dependencies; if `fzf` is not installed, the program falls back to typed prompts. Similarly, if your terminal does not support inline image protocols, the program continues to function without previews.
-
-- Optional but recommended:
-  - `fzf` — used for fuzzy selection of commands and files.
-  - Terminal with support for one of the following image protocols for inline previews:
-    - `kitty` graphics protocol
-    - `iTerm2` inline images (OSC 1337)
-    - `sixel` (e.g. `mlterm`, `xterm` with sixel support, `mintty`, etc.)
-  - Optional CLI tools for preview fallbacks (if your terminal does not support the above protocols):
-    - `chafa`
-    - `img2sixel`
-
-### Build Dependencies
-
-- Go toolchain (modules; see `go.mod`).
-- ImageMagick native libraries and development headers.
-- Go binding:
-  - `gopkg.in/gographics/imagick.v3` (declared in `go.mod`).
-
-Files of interest in this repo:
-
-- `main.go` — main interactive loop, startup file-selection behavior, and key handling (including the `o` key to open another image and `u` to check for updates).
-- `commands.go` — built-in command metadata.
-- `meta.go` — metadata helpers, `MetaStore`, JSON loading and validation helpers.
-- `imagemagick.go` — mapping from command names + args to ImageMagick `MagickWand` calls.
-- `fzf.go` — `fzf` integration for command and file selection.
-- `terminal_preview.go` — inline preview helpers and protocol detection.
-- `update.go` — update checking and self-update logic (GitHub Releases detection, asset selection, prompting, and replace/restart behavior).
 
 ---
 
