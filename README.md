@@ -33,7 +33,7 @@ This repository contains the terminal UI and the command metadata used to presen
 
 `termagick` is an interactive, terminal-based image editor. It loads an image into an ImageMagick `MagickWand` and allows you to apply transformations and filters (blur, sharpen, resize, rotate, posterize, composite, etc.) using interactive prompts driven by command metadata.
 
-The CLI ships with built-in command metadata (see `commands.go`) and provides helpers to load metadata from JSON (see `meta.go`). Command prompts and validation are metadata-driven, so parameter types, required fields, enums and hints are shown to the user.
+The CLI ships with built-in command metadata (see `commands.go`) and provides helpers to load metadata (see `meta.go`). Command prompts and validation are metadata-driven, so parameter types, required fields, enums and hints are shown to the user.
 
 ---
 
@@ -91,6 +91,9 @@ export CGO_CFLAGS="$(pkg-config --cflags MagickWand-7.Q16HDRI)"
 export CGO_LDFLAGS="$(pkg-config --libs MagickWand-7.Q16HDRI)"
 go install github.com/Fepozopo/termagick@latest
 ```
+
+If you prefer not to install ImageMagick, you can download prebuilt binaries for your platform from the [releases page](https://github.com/Fepozopo/termagick/releases).
+Make sure to pick the right binary for your platform/architecture and place it in your `PATH`.
 
 ---
 
