@@ -71,29 +71,45 @@ Note, there are no true runtime dependencies; if `fzf` is not installed, the pro
 
 - Go toolchain installed.
 - ImageMagick version 7.X installed.
+- ImageMagick development headers/libraries (e.g. `libmagickwand-dev` on Debian/Ubuntu).
+- `pkg-config` (if using the pkg-config-based installation method).
 
 ---
 
 ## Installation
 
-Install with:
+Once you have a working Go toolchain and ImageMagick installed, you can install `termagick` with `go install`.
+
+Check if pkg-config is able to find the right ImageMagick include and libs:
+
+```bash
+pkg-config --cflags --libs MagickWand
+```
+
+Per the security update [https://groups.google.com/forum/#!topic/golang-announce/X7N1mvntnoU](https://groups.google.com/forum/#!topic/golang-announce/X7N1mvntnoU) you may need whitelist the -Xpreprocessor flag in your environment.
+
+```bash
+export CGO_CFLAGS_ALLOW='-Xpreprocessor'
+```
+
+Then install with:
 
 ```bash
 go install github.com/Fepozopo/termagick@latest
 ```
 
-This will install it to your `GOBIN` if set. Otherwise, it will install to `$GOPATH/bin` or `$HOME/go/bin`.
-
-You may have to manually set the following environment variables so the Go linker can find the C libraries for ImageMagick.
+You can also manually set the following environment variables so the Go linker can find the C libraries for ImageMagick.
 
 ```bash
 export CGO_CFLAGS="$(pkg-config --cflags MagickWand-7.Q16HDRI)"
 export CGO_LDFLAGS="$(pkg-config --libs MagickWand-7.Q16HDRI)"
-go install github.com/Fepozopo/termagick@latest
+go install -tags no_pkgconfig github.com/Fepozopo/termagick@latest
 ```
 
-If you prefer not to install ImageMagick, you can download prebuilt binaries for your platform from the [releases page](https://github.com/Fepozopo/termagick/releases).
-Make sure to pick the right binary for your platform/architecture and place it in your `PATH`.
+This will install it to your `$GOBIN` if set. Otherwise, it will install to `$GOPATH/bin` or `$HOME/go/bin`.
+
+If you prefer to install without any dependencies, you can download prebuilt binaries for your platform from the [releases page](https://github.com/Fepozopo/termagick/releases).
+Make sure to pick the right binary for your platform/architecture and place it in your `$PATH`.
 
 ---
 
@@ -245,7 +261,9 @@ Preview / terminal rendering notes:
 
 - Build/link errors referencing ImageMagick symbols:
   - Ensure ImageMagick and its development package are installed (not just the `convert` CLI).
-  - Ensure `pkg-config` can locate ImageMagick (`pkg-config --modversion MagickWand`).
+  - Ensure `pkg-config` can locate ImageMagick (`pkg-config --cflags --libs MagickWand`).
+  - Ensure `CGO_CFLAGS` and `CGO_LDFLAGS` are set correctly if not using `pkg-config`.
+  - Ensure `CGO_CFLAGS_ALLOW` includes `-Xpreprocessor` if needed.
   - If you get CGO-related issues, verify environment variables and that your system can find the headers and libraries.
 - Runtime errors about missing shared libraries:
   - On Linux, make sure the directory containing `libMagickWand.so` is in `LD_LIBRARY_PATH` or installed in a standard location and registered via `ldconfig`.
