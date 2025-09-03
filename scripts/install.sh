@@ -33,7 +33,9 @@ if [ -n "$PKG" ]; then
   export CGO_LDFLAGS="$(pkg-config --libs "$PKG")"
 else
   echo "pkg-config couldn't find ImageMagick. Trying Homebrew Cellar heuristics..."
-  if command -v brew >/dev/null 2>&1; then
+  if [ -n "${IM_PREFIX:-}" ]; then
+    IM_DIR="${IM_PREFIX%/}"
+  elif command -v brew >/dev/null 2>&1; then
     IM_PREFIX="$(brew --prefix)/Cellar/imagemagick"
     IM_DIR="$(ls -d "$IM_PREFIX"/* 2>/dev/null | tail -n1 || true)"
     if [ -n "$IM_DIR" ] && [ -d "$IM_DIR/lib" ]; then
@@ -75,3 +77,21 @@ echo "Installing termagick via go..."
 export CGO_CFLAGS_ALLOW='-Xpreprocessor'
 go install github.com/Fepozopo/termagick@latest
 echo "Install complete. Ensure runtime linker can find ImageMagick libs (see README for LD_LIBRARY_PATH/ldconfig guidance)."
+
+# CI-friendly verification: check the installed binary for unresolved shared libs
+BIN_PATH="$(go env GOPATH 2>/dev/null || echo "$HOME/go")/bin/termagick"
+if [ -x "$BIN_PATH" ]; then
+  echo
+  echo "Verifying runtime dependencies for: $BIN_PATH"
+  UNRESOLVED=$(ldd "$BIN_PATH" 2>/dev/null | grep 'not found' || true)
+  if [ -n "$UNRESOLVED" ]; then
+    echo "WARNING: unresolved shared libraries detected:"
+    echo "$UNRESOLVED"
+    echo
+    echo "If the unresolved libraries are ImageMagick libs, either set LD_LIBRARY_PATH to include the ImageMagick lib directory, or register the directory with the system linker via ldconfig (see README)."
+  else
+    echo "All shared libraries resolved successfully."
+  fi
+else
+  echo "Installed binary not found at $BIN_PATH; skipped ldd verification."
+fi

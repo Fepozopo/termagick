@@ -33,7 +33,9 @@ if [ -n "$PKG" ]; then
   export CGO_LDFLAGS="$(pkg-config --libs "$PKG")"
 else
   echo "pkg-config couldn't find ImageMagick. Trying Homebrew Cellar heuristics..."
-  if command -v brew >/dev/null 2>&1; then
+  if [ -n "${IM_PREFIX:-}" ]; then
+    IM_DIR="${IM_PREFIX%/}"
+  elif command -v brew >/dev/null 2>&1; then
     IM_PREFIX="$(brew --prefix)/Cellar/imagemagick"
     IM_DIR="$(ls -d "$IM_PREFIX"/* 2>/dev/null | tail -n1 || true)"
     if [ -n "$IM_DIR" ] && [ -d "$IM_DIR/lib" ]; then

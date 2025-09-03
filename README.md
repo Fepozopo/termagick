@@ -115,6 +115,16 @@ This repo includes helper scripts in the `scripts/` directory to make building a
 - `scripts/build.sh`: Detects ImageMagick via `pkg-config` (prefers `MagickWand-7.Q16HDRI`), falls back to Homebrew Cellar heuristics, sets `CGO_CFLAGS`/`CGO_LDFLAGS`, and builds a binary into `./bin/` named `termagick-<os>-<arch>`.
 - `scripts/install.sh`: Similar detection logic; sets `CGO_*` env vars and runs `go install github.com/Fepozopo/termagick@latest`. When it detects a Homebrew Cellar path it will offer to register the library directory with the system linker (`ldconfig`) so the runtime loader can find `libMagickWand-7`.
 
+Environment overrides and verification
+
+- You can force a specific ImageMagick installation by setting `IM_PREFIX` to the ImageMagick installation lib directory (or its Cellar path). Example:
+```bash
+IM_PREFIX="/home/linuxbrew/.linuxbrew/Cellar/imagemagick/7.1.2-3" ./scripts/build.sh
+IM_PREFIX="/home/linuxbrew/.linuxbrew/Cellar/imagemagick/7.1.2-3" ./scripts/install.sh
+```
+
+- `scripts/install.sh` performs a simple `ldd` check on the installed binary to report unresolved shared libraries and prints remediation steps.
+
 Runtime linker notes (when you see "error while loading shared libraries: libMagickWand-7.Q16HDRI.so.10: cannot open shared object file: No such file or directory"):
 
 - Quick test (no sudo):
