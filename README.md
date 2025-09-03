@@ -52,10 +52,10 @@ The CLI ships with built-in command metadata (see `commands.go`) and provides he
 ---
 
 ## Dependencies
-
-### Run Dependencies
-
-Note, there are no true runtime dependencies; if `fzf` is not installed, the program falls back to typed prompts. Similarly, if your terminal does not support inline image protocols, the program continues to function without previews.
+- Required:
+  - `ImageMagick` command-line tools (for the `convert` binary, etc.) and libraries (version 7.X).
+  - `pkg-config` (if you want to build from source).
+  - A working Go toolchain.
 
 - Optional but recommended:
   - `fzf` — used for fuzzy selection of commands and files.
@@ -67,12 +67,7 @@ Note, there are no true runtime dependencies; if `fzf` is not installed, the pro
     - `chafa`
     - `img2sixel`
 
-### Installation/Build Dependencies
-
-- Go toolchain installed.
-- ImageMagick version 7.X installed.
-- ImageMagick development headers/libraries (e.g. `libmagickwand-dev` on Debian/Ubuntu).
-- `pkg-config` (if using the pkg-config-based installation method).
+If `fzf` is not installed, the program falls back to typed prompts. Similarly, if your terminal does not support inline image protocols, the program continues to function without previews.
 
 ---
 
@@ -108,8 +103,35 @@ go install -tags no_pkgconfig github.com/Fepozopo/termagick@latest
 
 This will install it to your `$GOBIN` if set. Otherwise, it will install to `$GOPATH/bin` or `$HOME/go/bin`.
 
-If you prefer to install without any dependencies, you can download prebuilt binaries for your platform from the [releases page](https://github.com/Fepozopo/termagick/releases).
+If you prefer, you can download prebuilt binaries for your platform from the [releases page](https://github.com/Fepozopo/termagick/releases).
 Make sure to pick the right binary for your platform/architecture and place it in your `$PATH`.
+
+---
+
+## Scripts & runtime linking
+
+This repo includes helper scripts in the `scripts/` directory to make building and installing more portable across systems that use Homebrew or system packages.
+
+- `scripts/build.sh`: Detects ImageMagick via `pkg-config` (prefers `MagickWand-7.Q16HDRI`), falls back to Homebrew Cellar heuristics, sets `CGO_CFLAGS`/`CGO_LDFLAGS`, and builds a binary into `./bin/` named `termagick-<os>-<arch>`.
+- `scripts/install.sh`: Similar detection logic; sets `CGO_*` env vars and runs `go install github.com/Fepozopo/termagick@latest`. When it detects a Homebrew Cellar path it will offer to register the library directory with the system linker (`ldconfig`) so the runtime loader can find `libMagickWand-7`.
+
+Runtime linker notes (when you see "error while loading shared libraries: libMagickWand-7.Q16HDRI.so.10: cannot open shared object file: No such file or directory"):
+
+- Quick test (no sudo):
+```bash
+export LD_LIBRARY_PATH="/path/to/im/lib:${LD_LIBRARY_PATH:-}"
+./termagick
+```
+
+- Permanent system fix (requires sudo): add ImageMagick lib directory to the loader cache and run `ldconfig`:
+```bash
+echo "/path/to/im/lib" | sudo tee /etc/ld.so.conf.d/homebrew-imagemagick.conf
+sudo ldconfig
+```
+
+Replace `/path/to/im/lib` with the directory containing `libMagickWand-7.Q16HDRI.so.*` (for Homebrew that is often `$(brew --prefix)/Cellar/imagemagick/<version>/lib`).
+
+If you prefer not to modify system linker config, keep the `LD_LIBRARY_PATH` export in your shell profile.
 
 ---
 
