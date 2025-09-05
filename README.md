@@ -93,18 +93,27 @@ Then install with:
 go install github.com/Fepozopo/termagick@latest
 ```
 
-You can also manually set the following environment variables so the Go linker can find the C libraries for ImageMagick.
+If you are having trouble with CGO finding the ImageMagick headers or libraries, you can set `CGO_CFLAGS` and `CGO_LDFLAGS` manually. Example:
 
 ```bash
-export CGO_CFLAGS="$(pkg-config --cflags MagickWand-7.Q16HDRI)"
-export CGO_LDFLAGS="$(pkg-config --libs MagickWand-7.Q16HDRI)"
-go install -tags no_pkgconfig github.com/Fepozopo/termagick@latest
+export CGO_CFLAGS="-I/usr/local/include/ImageMagick-7"
+export CGO_LDFLAGS="-L/usr/local/lib -lMagickWand-7.Q16HDRI -lMagickCore-7.Q16HDRI"
+go install github.com/Fepozopo/termagick@latest
+```
+Or, if you installed ImageMagick via Homebrew on macOS or Linux, you can use:
+
+```bash
+export CGO_CFLAGS="$(pkg-config --cflags MagickWand)"
+export CGO_LDFLAGS="$(pkg-config --libs MagickWand)"
+go install github.com/Fepozopo/termagick@latest
 ```
 
 This will install it to your `$GOBIN` if set. Otherwise, it will install to `$GOPATH/bin` or `$HOME/go/bin`.
 
 If you prefer, you can download prebuilt binaries for your platform from the [releases page](https://github.com/Fepozopo/termagick/releases).
 Make sure to pick the right binary for your platform/architecture and place it in your `$PATH`.
+
+You can also use the provided scripts in the `scripts/` directory to help with building and installing (see "Scripts & runtime linking" below).
 
 ---
 
