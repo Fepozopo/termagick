@@ -1,9 +1,9 @@
-package main
+package internal
 
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -16,8 +16,6 @@ import (
 	"github.com/blang/semver"
 	"github.com/rhysd/go-github-selfupdate/selfupdate"
 )
-
-var Version = "0.1.1"
 
 // detectLatestFallback queries the GitHub Releases API and returns a best-match
 // release struct compatible with selfupdate.Release. It prefers published,
@@ -33,11 +31,11 @@ func detectLatestFallback(repo string) (*selfupdate.Release, bool, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		return nil, false, fmt.Errorf("github API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, false, fmt.Errorf("failed reading github response: %w", err)
 	}
@@ -128,7 +126,7 @@ func detectLatestFallback(repo string) (*selfupdate.Release, bool, error) {
 	return r, true, nil
 }
 
-func checkForUpdates() error {
+func CheckForUpdates() error {
 	const repo = "Fepozopo/termagick"
 
 	// Use the GitHub API fallback detector which is tolerant of tag naming.
@@ -173,7 +171,7 @@ func checkForUpdates() error {
 	}
 
 	// Prompt the user to confirm updating.
-	answer, perr := promptLine(fmt.Sprintf("A new version (%s) is available. Update now? (y/N): ", latest.Version))
+	answer, perr := PromptLine(fmt.Sprintf("A new version (%s) is available. Update now? (y/N): ", latest.Version))
 	if perr != nil {
 		return fmt.Errorf("failed reading input: %w", perr)
 	}

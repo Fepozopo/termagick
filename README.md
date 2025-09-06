@@ -52,6 +52,7 @@ The CLI ships with built-in command metadata (see `commands.go`) and provides he
 ---
 
 ## Dependencies
+
 - Required:
   - `ImageMagick` command-line tools (for the `convert` binary, etc.) and libraries (version 7.X).
   - `pkg-config` (if you want to build from source).
@@ -100,6 +101,7 @@ export CGO_CFLAGS="-I/usr/local/include/ImageMagick-7"
 export CGO_LDFLAGS="-L/usr/local/lib -lMagickWand-7.Q16HDRI -lMagickCore-7.Q16HDRI"
 go install github.com/Fepozopo/termagick@latest
 ```
+
 Or, if you installed ImageMagick via Homebrew on macOS or Linux, you can use:
 
 ```bash
@@ -127,6 +129,7 @@ This repo includes helper scripts in the `scripts/` directory to make building a
 Environment overrides and verification
 
 - You can force a specific ImageMagick installation by setting `IM_PREFIX` to the ImageMagick installation lib directory (or its Cellar path). Example:
+
 ```bash
 IM_PREFIX="/home/linuxbrew/.linuxbrew/Cellar/imagemagick/7.1.2-3" ./scripts/build.sh
 IM_PREFIX="/home/linuxbrew/.linuxbrew/Cellar/imagemagick/7.1.2-3" ./scripts/install.sh
@@ -137,12 +140,14 @@ IM_PREFIX="/home/linuxbrew/.linuxbrew/Cellar/imagemagick/7.1.2-3" ./scripts/inst
 Runtime linker notes (when you see "error while loading shared libraries: libMagickWand-7.Q16HDRI.so.10: cannot open shared object file: No such file or directory"):
 
 - Quick test (no sudo):
+
 ```bash
 export LD_LIBRARY_PATH="/path/to/im/lib:${LD_LIBRARY_PATH:-}"
 ./termagick
 ```
 
 - Permanent system fix (requires sudo): add ImageMagick lib directory to the loader cache and run `ldconfig`:
+
 ```bash
 echo "/path/to/im/lib" | sudo tee /etc/ld.so.conf.d/homebrew-imagemagick.conf
 sudo ldconfig
@@ -191,10 +196,10 @@ Prerequisites: a working Go toolchain and ImageMagick with development headers/l
 From the repository root (where `go.mod` is located):
 
 - To build:
-  - `go build ./...`
+  - `./scripts/build.sh`
   - This produces executable(s) (for example `termagick` if the main package is in the repo root).
 - To install to `GOBIN`:
-  - `go install ./...`
+  - `./scripts/install.sh`
 
 Docker / Makefile build targets
 

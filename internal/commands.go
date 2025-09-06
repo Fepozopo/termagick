@@ -1,9 +1,9 @@
-package main
+package internal
 
 // This file embeds the full command metadata directly in Go structs so the
 // CLI can use a single compile-time source of truth.
 
-var commands = []CommandMeta{
+var Commands = []CommandMeta{
 	{
 		Name:        "adaptiveBlur",
 		Description: "Adaptively blur the image",

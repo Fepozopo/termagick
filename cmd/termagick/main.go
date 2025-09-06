@@ -7,18 +7,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Fepozopo/termagick/internal"
 	"gopkg.in/gographics/imagick.v3/imagick"
 )
-
-func promptLine(prompt string) (string, error) {
-	fmt.Print(prompt)
-	reader := bufio.NewReader(os.Stdin)
-	text, err := reader.ReadString('\n')
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(text), nil
-}
 
 func usageAndExit(prog string) {
 	fmt.Printf("Usage: %s <input-image>\n", prog)
@@ -41,7 +32,7 @@ func main() {
 	}
 
 	// Use in-code commands metadata (compile-time)
-	store := NewMetaStore(commands)
+	store := internal.NewMetaStore(internal.Commands)
 
 	imagick.Initialize()
 	defer imagick.Terminate()
@@ -63,7 +54,7 @@ func main() {
 
 		// Try to show an initial preview in compatible terminals.
 		// Ignore errors here so preview remains optional.
-		_ = PreviewWand(wand)
+		_ = internal.PreviewWand(wand)
 	} else {
 		wand = nil
 	}
@@ -87,31 +78,31 @@ func main() {
 				continue
 			}
 			var commandName string
-			name, err := SelectCommandWithFzf(commands)
+			name, err := internal.SelectCommandWithFzf(internal.Commands)
 			if err != nil || name == "" {
 				// fzf unavailable, returned nothing, or errored — fall back to a textual selection list.
 				fmt.Println("Command selection (fallback):")
-				for i, c := range commands {
+				for i, c := range internal.Commands {
 					fmt.Printf("  %d) %s - %s\n", i+1, c.Name, c.Description)
 				}
-				selection, _ := promptLine("Enter number or command name (leave empty to cancel): ")
+				selection, _ := internal.PromptLine("Enter number or command name (leave empty to cancel): ")
 				if selection == "" {
 					fmt.Println("selection cancelled")
 					continue
 				}
 				// Try numeric selection first (1-based)
 				if idx, perr := strconv.Atoi(selection); perr == nil {
-					if idx < 1 || idx > len(commands) {
+					if idx < 1 || idx > len(internal.Commands) {
 						fmt.Println("invalid selection")
 						continue
 					}
-					commandName = commands[idx-1].Name
+					commandName = internal.Commands[idx-1].Name
 				} else {
 					// Treat input as command name — perform case-insensitive exact or prefix matching.
 					selLower := strings.ToLower(selection)
 					found := ""
 					// exact (case-insensitive) match
-					for _, c := range commands {
+					for _, c := range internal.Commands {
 						if strings.ToLower(c.Name) == selLower {
 							found = c.Name
 							break
@@ -120,7 +111,7 @@ func main() {
 					// if not found, try prefix matches (case-insensitive)
 					if found == "" {
 						matches := []string{}
-						for _, c := range commands {
+						for _, c := range internal.Commands {
 							if strings.HasPrefix(strings.ToLower(c.Name), selLower) {
 								matches = append(matches, c.Name)
 							}
@@ -146,8 +137,8 @@ func main() {
 			}
 
 			// Find the CommandMeta definition (from commands.go)
-			var selectedCmd CommandMeta
-			for _, cmd := range commands {
+			var selectedCmd internal.CommandMeta
+			for _, cmd := range internal.Commands {
 				if strings.EqualFold(cmd.Name, commandName) {
 					selectedCmd = cmd
 					break
@@ -163,19 +154,19 @@ func main() {
 			var rawArgs []string
 			if store != nil {
 				// Attempt to find metadata entry
-				metaCmd, metaFound := store.byName[commandName]
-				if metaFound {
+				metaCmd := internal.GetCommandMetaByName(store.Commands, commandName)
+				if metaCmd != nil {
 					tooltip, _, _ := store.GetCommandHelp(commandName)
 					fmt.Println("\n" + tooltip + "\n")
 					rawArgs = make([]string, len(metaCmd.Params))
 					for i, p := range metaCmd.Params {
 						typeLabel := string(p.Type)
-						if p.Type == ParamTypeEnum && len(p.EnumOptions) > 0 {
+						if p.Type == internal.ParamTypeEnum && len(p.EnumOptions) > 0 {
 							typeLabel = fmt.Sprintf("enum(%s)", strings.Join(p.EnumOptions, "|"))
 						}
 						prompt := fmt.Sprintf("%s (%s): ", p.Name, typeLabel)
 
-						val, err := promptLine(prompt)
+						val, err := internal.PromptLine(prompt)
 						if err != nil {
 							fmt.Fprintf(os.Stderr, "input error: %v\n", err)
 							val = ""
@@ -184,7 +175,7 @@ func main() {
 					}
 
 					// Normalize & validate args using the metadata-driven helper.
-					normArgs, err := NormalizeArgs(store, commandName, rawArgs)
+					normArgs, err := internal.NormalizeArgs(store, commandName, rawArgs)
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "input validation error: %v\n", err)
 						fmt.Println("aborting command due to input errors")
@@ -192,13 +183,13 @@ func main() {
 					}
 
 					// Apply command with normalized args
-					if err := ApplyCommand(wand, commandName, normArgs); err != nil {
+					if err := internal.ApplyCommand(wand, commandName, normArgs); err != nil {
 						fmt.Fprintf(os.Stderr, "apply command error: %v\n", err)
 						continue
 					}
 					fmt.Printf("Applied %s\n", commandName)
 					// Update inline terminal preview if available.
-					_ = PreviewWand(wand)
+					_ = internal.PreviewWand(wand)
 					continue
 				}
 			}
@@ -207,19 +198,19 @@ func main() {
 			rawArgs = make([]string, len(selectedCmd.Params))
 			for i, param := range selectedCmd.Params {
 				prompt := fmt.Sprintf("Enter %s: ", param.Name)
-				val, _ := promptLine(prompt)
+				val, _ := internal.PromptLine(prompt)
 				rawArgs[i] = val
 			}
-			if err := ApplyCommand(wand, commandName, rawArgs); err != nil {
+			if err := internal.ApplyCommand(wand, commandName, rawArgs); err != nil {
 				fmt.Fprintf(os.Stderr, "apply command error: %v\n", err)
 				continue
 			}
 			fmt.Printf("Applied %s\n", commandName)
 			// Update inline terminal preview if available.
-			_ = PreviewWand(wand)
+			_ = internal.PreviewWand(wand)
 
 		case 's':
-			out, _ := promptLine("Enter output filename: ")
+			out, _ := internal.PromptLine("Enter output filename: ")
 			if out == "" {
 				fmt.Println("no filename provided")
 				continue
@@ -232,11 +223,11 @@ func main() {
 
 		case 'o':
 			// Open another image at runtime. Prefer fzf-based file selection; fall back to typed path.
-			selected, selErr := SelectFileWithFzf(".")
+			selected, selErr := internal.SelectFileWithFzf(".")
 			var newPath string
 			if selErr != nil || selected == "" {
 				// fzf failed, was cancelled, or returned nothing — fall back to a typed path prompt.
-				newPath, _ = promptLine("Enter path to image to open (leave empty to cancel): ")
+				newPath, _ = internal.PromptLine("Enter path to image to open (leave empty to cancel): ")
 				if newPath == "" {
 					fmt.Println("open cancelled")
 					continue
@@ -258,12 +249,12 @@ func main() {
 			wand = newWand
 			fmt.Printf("Opened %s\n", newPath)
 			// Update inline terminal preview if available.
-			_ = PreviewWand(wand)
+			_ = internal.PreviewWand(wand)
 			continue
 
 		case 'u':
-			// Trigger an update check (runs the goroutine in checkForUpdates)
-			err := checkForUpdates()
+			// Trigger an update check (runs the goroutine in CheckForUpdates)
+			err := internal.CheckForUpdates()
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "update check error: %v\n", err)
 			}

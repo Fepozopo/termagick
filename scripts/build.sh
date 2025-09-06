@@ -59,5 +59,5 @@ mkdir -p "$OUT_DIR"
 OUT="$OUT_DIR/termagick-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)"
 
 echo "Building termagick -> $OUT"
-go build -tags no_pkgconfig -o "$OUT"
+go build -tags no_pkgconfig -o "$OUT" ./cmd/termagick
 echo "Build complete: $OUT"
