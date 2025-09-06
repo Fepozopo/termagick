@@ -54,7 +54,11 @@ func main() {
 
 		// Try to show an initial preview in compatible terminals.
 		// Ignore errors here so preview remains optional.
-		_ = internal.PreviewWand(wand)
+		if err := internal.PreviewWand(wand); err == nil {
+			if info, ierr := internal.GetImageInfo(wand); ierr == nil {
+				fmt.Println(info)
+			}
+		}
 	} else {
 		wand = nil
 	}
@@ -189,7 +193,11 @@ func main() {
 					}
 					fmt.Printf("Applied %s\n", commandName)
 					// Update inline terminal preview if available.
-					_ = internal.PreviewWand(wand)
+					if err := internal.PreviewWand(wand); err == nil {
+						if info, ierr := internal.GetImageInfo(wand); ierr == nil {
+							fmt.Println(info)
+						}
+					}
 					continue
 				}
 			}
@@ -207,7 +215,11 @@ func main() {
 			}
 			fmt.Printf("Applied %s\n", commandName)
 			// Update inline terminal preview if available.
-			_ = internal.PreviewWand(wand)
+			if err := internal.PreviewWand(wand); err == nil {
+				if info, ierr := internal.GetImageInfo(wand); ierr == nil {
+					fmt.Println(info)
+				}
+			}
 
 		case 's':
 			out, _ := internal.PromptLine("Enter output filename: ")
@@ -249,7 +261,11 @@ func main() {
 			wand = newWand
 			fmt.Printf("Opened %s\n", newPath)
 			// Update inline terminal preview if available.
-			_ = internal.PreviewWand(wand)
+			if err := internal.PreviewWand(wand); err == nil {
+				if info, ierr := internal.GetImageInfo(wand); ierr == nil {
+					fmt.Println(info)
+				}
+			}
 			continue
 
 		case 'u':

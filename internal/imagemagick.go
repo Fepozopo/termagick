@@ -17,7 +17,17 @@ func GetImageInfo(wand *imagick.MagickWand) (string, error) {
 	height := wand.GetImageHeight()
 	compression := wand.GetImageCompression()
 	compressionQuality := wand.GetImageCompressionQuality()
-	return fmt.Sprintf("Format: %s, Width: %d, Height: %d\nCompression: %v, Compression Quality: %v", format, width, height, compression, compressionQuality), nil
+
+	// Resolve compression name using the shared mapping helper defined in meta.go.
+	var compressionName string
+	if name, ok := mapNumericToEnumName("compression", int64(compression)); ok {
+		compressionName = name
+	} else {
+		// fallback to numeric representation if unknown
+		compressionName = strconv.FormatInt(int64(compression), 10)
+	}
+
+	return fmt.Sprintf("Format: %s, Width: %d, Height: %d\nCompression: %s, Compression Quality: %v", format, width, height, compressionName, compressionQuality), nil
 }
 
 // ApplyCommand applies the given command to the magick wand
@@ -241,6 +251,37 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 			return fmt.Errorf("invalid y: %w", err)
 		}
 		return wand.CompositeImage(sourceWand, imagick.CompositeOperator(compose), true, int(x), int(y))
+
+	case "compress":
+		// compress requires 2 args: type, quality
+		if len(args) != 2 {
+			return fmt.Errorf("compress requires 2 arguments: type and quality")
+		}
+
+		// Parse compression type
+		compVal, err := strconv.ParseInt(args[0], 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid compression type: %w", err)
+		}
+
+		// Set compression type
+		if err := wand.SetImageCompression(imagick.CompressionType(compVal)); err != nil {
+			return fmt.Errorf("failed to set image compression: %w", err)
+		}
+
+		// Parse quality
+		q, err := strconv.ParseInt(args[1], 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid quality: %w", err)
+		}
+		if q < 0 {
+			q = 0
+		}
+		// Set compression quality
+		if err := wand.SetImageCompressionQuality(uint(q)); err != nil {
+			return fmt.Errorf("failed to set compression quality: %w", err)
+		}
+		return nil
 
 	case "contrast":
 		if len(args) != 1 {

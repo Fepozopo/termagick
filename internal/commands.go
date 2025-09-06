@@ -127,6 +127,14 @@ var Commands = []CommandMeta{
 		},
 	},
 	{
+		Name:        "compress",
+		Description: "Compress the image to reduce file size (lossy or lossless)",
+		Params: []ParamMeta{
+			{Name: "type", Type: ParamTypeEnum, Required: true, Hint: "Compression type to use. Choose based on desired balance of quality and size.", Example: "JPEG", EnumOptions: []string{"UNDEFINED", "NO", "BZIP", "DXT1", "DXT3", "DXT5", "FAX", "GROUP4", "JPEG", "JPEG2000", "LOSSLESS_JPEG", "LZW", "RLE", "ZIP", "ZIPS", "PIZ", "PXR24", "B44", "B44A", "LZMA", "JBIG1", "JBIG2"}},
+			{Name: "quality", Type: ParamTypeInt, Required: true, Min: float64Ptr(1), Max: float64Ptr(100), Hint: "Quality level (1-100). Lower = smaller file size but more compression artifacts.", Example: "85"},
+		},
+	},
+	{
 		Name:        "contrast",
 		Description: "Enhance or reduce the image contrast",
 		Params: []ParamMeta{

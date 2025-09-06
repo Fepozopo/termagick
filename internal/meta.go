@@ -6,6 +6,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"gopkg.in/gographics/imagick.v3/imagick"
 )
 
 // ParamType is a small enum for parameter types used in metadata.
@@ -224,16 +226,20 @@ func parsePercentValue(s string) (string, error) {
 	return s, nil
 }
 
-// mapEnumToNumeric attempts to translate some known enum textual values to numeric IDs
-// expected by ApplyCommand. Extend these maps as needed.
-func mapEnumToNumeric(paramName string, val string) (string, bool) {
-	v := strings.TrimSpace(val)
-	if _, err := strconv.ParseInt(v, 10, 64); err == nil {
-		// already numeric
-		return v, true
-	}
+/*
+Package-level enum maps and helpers.
 
-	noiseTypeMap := map[string]int64{
+We extract the textual<->numeric maps into package-level variables so that
+they can be reused by both directions of mapping:
+
+- mapEnumToNumeric: textual -> numeric (existing behavior)
+- mapNumericToEnumName: numeric -> textual (new helper used elsewhere, e.g. GetImageInfo)
+
+Add or extend maps here as new enum types are required.
+*/
+
+var (
+	noiseTypeNameToValue = map[string]int64{
 		"UNIFORM":        0,
 		"GAUSSIAN":       1,
 		"MULTIPLICATIVE": 2,
@@ -242,7 +248,16 @@ func mapEnumToNumeric(paramName string, val string) (string, bool) {
 		"POISSON":        5,
 	}
 
-	composeOpMap := map[string]int64{
+	noiseTypeValueToName = map[int64]string{
+		0: "UNIFORM",
+		1: "GAUSSIAN",
+		2: "MULTIPLICATIVE",
+		3: "IMPULSE",
+		4: "LAPLACIAN",
+		5: "POISSON",
+	}
+
+	composeOpNameToValue = map[string]int64{
 		"OVER":     0,
 		"IN":       1,
 		"OUT":      2,
@@ -254,18 +269,119 @@ func mapEnumToNumeric(paramName string, val string) (string, bool) {
 		"SUBTRACT": 8,
 	}
 
+	composeOpValueToName = map[int64]string{
+		0: "OVER",
+		1: "IN",
+		2: "OUT",
+		3: "ATOP",
+		4: "XOR",
+		5: "MULTIPLY",
+		6: "SCREEN",
+		7: "ADD",
+		8: "SUBTRACT",
+	}
+
+	// Compression textual aliases mapped to ImageMagick compression constants.
+	// This allows UI-level enum normalization to produce the exact numeric IDs
+	// that ApplyCommand expects (we use the imagick package constants).
+	compressionNameToValue = map[string]int64{
+		"UNDEFINED":     int64(imagick.COMPRESSION_UNDEFINED),
+		"NO":            int64(imagick.COMPRESSION_NO),
+		"BZIP":          int64(imagick.COMPRESSION_BZIP),
+		"DXT1":          int64(imagick.COMPRESSION_DXT1),
+		"DXT3":          int64(imagick.COMPRESSION_DXT3),
+		"DXT5":          int64(imagick.COMPRESSION_DXT5),
+		"FAX":           int64(imagick.COMPRESSION_FAX),
+		"GROUP4":        int64(imagick.COMPRESSION_GROUP4),
+		"JPEG":          int64(imagick.COMPRESSION_JPEG),
+		"JPEG2000":      int64(imagick.COMPRESSION_JPEG2000),
+		"LOSSLESS_JPEG": int64(imagick.COMPRESSION_LOSSLESS_JPEG),
+		"LZW":           int64(imagick.COMPRESSION_LZW),
+		"RLE":           int64(imagick.COMPRESSION_RLE),
+		"ZIP":           int64(imagick.COMPRESSION_ZIP),
+		"ZIPS":          int64(imagick.COMPRESSION_ZIPS),
+		"PIZ":           int64(imagick.COMPRESSION_PIZ),
+		"PXR24":         int64(imagick.COMPRESSION_PXR24),
+		"B44":           int64(imagick.COMPRESSION_B44),
+		"B44A":          int64(imagick.COMPRESSION_B44A),
+		"LZMA":          int64(imagick.COMPRESSION_LZMA),
+		"JBIG1":         int64(imagick.COMPRESSION_JBIG1),
+		"JBIG2":         int64(imagick.COMPRESSION_JBIG2),
+	}
+
+	compressionValueToName = map[int64]string{
+		int64(imagick.COMPRESSION_UNDEFINED):     "UNDEFINED",
+		int64(imagick.COMPRESSION_NO):            "NO",
+		int64(imagick.COMPRESSION_BZIP):          "BZIP",
+		int64(imagick.COMPRESSION_DXT1):          "DXT1",
+		int64(imagick.COMPRESSION_DXT3):          "DXT3",
+		int64(imagick.COMPRESSION_DXT5):          "DXT5",
+		int64(imagick.COMPRESSION_FAX):           "FAX",
+		int64(imagick.COMPRESSION_GROUP4):        "GROUP4",
+		int64(imagick.COMPRESSION_JPEG):          "JPEG",
+		int64(imagick.COMPRESSION_JPEG2000):      "JPEG2000",
+		int64(imagick.COMPRESSION_LOSSLESS_JPEG): "LOSSLESS_JPEG",
+		int64(imagick.COMPRESSION_LZW):           "LZW",
+		int64(imagick.COMPRESSION_RLE):           "RLE",
+		int64(imagick.COMPRESSION_ZIP):           "ZIP",
+		int64(imagick.COMPRESSION_ZIPS):          "ZIPS",
+		int64(imagick.COMPRESSION_PIZ):           "PIZ",
+		int64(imagick.COMPRESSION_PXR24):         "PXR24",
+		int64(imagick.COMPRESSION_B44):           "B44",
+		int64(imagick.COMPRESSION_B44A):          "B44A",
+		int64(imagick.COMPRESSION_LZMA):          "LZMA",
+		int64(imagick.COMPRESSION_JBIG1):         "JBIG1",
+		int64(imagick.COMPRESSION_JBIG2):         "JBIG2",
+	}
+)
+
+// mapEnumToNumeric attempts to translate some known enum textual values to numeric IDs
+// expected by ApplyCommand. Extend these maps as needed.
+func mapEnumToNumeric(paramName string, val string) (string, bool) {
+	v := strings.TrimSpace(val)
+	if _, err := strconv.ParseInt(v, 10, 64); err == nil {
+		// already numeric
+		return v, true
+	}
+
 	switch strings.ToLower(paramName) {
 	case "noisetype", "noise_type", "noise":
-		if id, ok := noiseTypeMap[strings.ToUpper(v)]; ok {
+		if id, ok := noiseTypeNameToValue[strings.ToUpper(v)]; ok {
 			return strconv.FormatInt(id, 10), true
 		}
 	case "composeoperator", "compose_operator", "compose":
-		if id, ok := composeOpMap[strings.ToUpper(v)]; ok {
+		if id, ok := composeOpNameToValue[strings.ToUpper(v)]; ok {
+			return strconv.FormatInt(id, 10), true
+		}
+	case "type", "compression", "compressiontype", "compress":
+		if id, ok := compressionNameToValue[strings.ToUpper(v)]; ok {
 			return strconv.FormatInt(id, 10), true
 		}
 	}
 
 	// Not a known mapping
+	return "", false
+}
+
+// mapNumericToEnumName attempts the reverse mapping: given a parameter name and
+// an integer value, return the canonical textual name (if known).
+// This is useful when you have numeric enum values (e.g. from imagick) and want
+// to render or report the textual alias.
+func mapNumericToEnumName(paramName string, id int64) (string, bool) {
+	switch strings.ToLower(paramName) {
+	case "noisetype", "noise_type", "noise":
+		if s, ok := noiseTypeValueToName[id]; ok {
+			return s, true
+		}
+	case "composeoperator", "compose_operator", "compose":
+		if s, ok := composeOpValueToName[id]; ok {
+			return s, true
+		}
+	case "type", "compression", "compressiontype", "compress":
+		if s, ok := compressionValueToName[id]; ok {
+			return s, true
+		}
+	}
 	return "", false
 }
 
