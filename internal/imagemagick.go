@@ -7,6 +7,19 @@ import (
 	"gopkg.in/gographics/imagick.v3/imagick"
 )
 
+// GetImageInfo returns a string with basic info about the image in the wand
+func GetImageInfo(wand *imagick.MagickWand) (string, error) {
+	if wand == nil {
+		return "", fmt.Errorf("nil wand")
+	}
+	format := wand.GetImageFormat()
+	width := wand.GetImageWidth()
+	height := wand.GetImageHeight()
+	compression := wand.GetImageCompression()
+	compressionQuality := wand.GetImageCompressionQuality()
+	return fmt.Sprintf("Format: %s, Width: %d, Height: %d\nCompression: %v, Compression Quality: %v", format, width, height, compression, compressionQuality), nil
+}
+
 // ApplyCommand applies the given command to the magick wand
 func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) error {
 	switch commandName {
@@ -343,6 +356,25 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 
 	case "grayscale":
 		return wand.SetImageColorspace(imagick.COLORSPACE_GRAY)
+
+	case "identify":
+		info := wand.IdentifyImage()
+
+		verbose, err := strconv.ParseBool(args[0])
+		if err != nil {
+			return fmt.Errorf("invalid verbose value: %w", err)
+		}
+		if verbose {
+			fmt.Println(info)
+		} else {
+			// Print only a summary
+			summary, err := GetImageInfo(wand)
+			if err != nil {
+				return fmt.Errorf("failed to get image info: %w", err)
+			}
+			fmt.Println(summary)
+		}
+		return nil
 
 	case "level":
 		if len(args) != 3 {
