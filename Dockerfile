@@ -65,8 +65,10 @@ ENV CGO_CFLAGS_ALLOW='-Xpreprocessor'
 # Output dir for the built binary
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
+    chmod +x scripts/build.sh && \
+    ./scripts/build.sh && \
     mkdir -p /out && \
-    go build -ldflags="-s -w" -o /out/termagick ./...
+    mv bin/termagick-linux-x86_64 /out/termagick
 
 # ----------------------------
 # Runtime stage

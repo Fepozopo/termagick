@@ -212,19 +212,12 @@ Prerequisites:
 
 Common targets / examples (run from repo root):
 
-- Export a linux binary to `./out/termagick` using buildx local output:
+- Export a linux binary to `./out/termagick` using Docker:
 
 ```
-make binary
+make docker-build
 # If you need a specific Go base image or arch:
-make binary TARGET=linux/amd64 GOLANG_IMAGE=golang:1.25
-```
-
-- Fallback extraction (builds the `builder` stage for the requested platform, loads the image, then `docker cp` the binary out):
-
-```
-make extract-by-docker TARGET=linux/amd64 GOLANG_IMAGE=golang:1.25
-# Result: ./out/termagick
+make docker-build TARGET=linux/arm64 GOLANG_IMAGE=golang:1.25
 ```
 
 - Build the runtime image (final stage of the Dockerfile):
@@ -243,9 +236,6 @@ make multiarch IMAGE=youruser/termagick:tag PLATFORMS=linux/amd64,linux/arm64
 
 Notes:
 
-- If `make binary` fails due to host filesystem permissions when exporting `--output type=local`, try:
-  - `mkdir -p out && chmod 0777 out` before running `make binary`, or
-  - use `make extract-by-docker` which loads the built image and copies the binary out (more portable).
 - You can override the Go base image used during the build by setting `GOLANG_IMAGE` on the make command line (for example `GOLANG_IMAGE=golang:1.24-bullseye`).
 
 See `go.mod` for module and Go version information.

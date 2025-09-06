@@ -41,12 +41,13 @@ BUILDX_BUILDER_NAME ?= termagick-builder
 # Speed / caching knobs (user can override)
 CACHE_DIR ?= /tmp/termagick-docker-cache
 
-.PHONY: help build builder image binary out multiarch push create-builder rm-builder clean extract-by-docker
+.PHONY: help build builder image binary out multiarch push create-builder rm-builder clean docker-build
 
 help:
 	@printf "Makefile targets (use with -f termagick/Makefile):\n\n"
 	@printf "  build        Build the final runtime image (uses Docker BuildKit).\n"
 	@printf "  binary       Produce a linux binary in ./out (uses buildx --output local).\n"
+	@printf "  docker-build Produce a linux binary in ./out using Docker.\n"
 	@printf "  out/$(BINARY)  Alias for 'binary' (creates $(OUTDIR)/$(BINARY)).\n"
 	@printf "  multiarch    Build (and optionally push) a multi-arch image via buildx --platform=$(PLATFORMS).\n"
 	@printf "  push         Push an already-built image tag to registry (simple docker push).\n"
@@ -87,10 +88,7 @@ $(OUTDIR)/$(BINARY):
 		echo "ERROR: expected $(OUTDIR)/$(BINARY) but it was not created"; exit 1; \
 	fi
 
-# Alternative extraction route for environments without buildx local output support:
-# build the builder image for the target platform using buildx, load it into the local daemon,
-# then docker create + docker cp the binary out of the container.
-extract-by-docker:
+docker-build:
 	@echo "Building builder image and extracting binary by docker create/cp (GOLANG_IMAGE=$(GOLANG_IMAGE), TARGET=$(TARGET))"
 	# Use buildx to build the builder stage for the requested platform and load it into the local docker daemon.
 	DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) $(BUILDX) build \
@@ -107,6 +105,7 @@ extract-by-docker:
 	 $(DOCKER) rm -v $$CONTAINER_ID; \
 	 chmod +x $(OUTDIR)/$(BINARY); \
 	 echo "Binary extracted to $(OUTDIR)/$(BINARY)"
+
 
 # Build multi-arch image and push to registry (requires `docker login` beforehand).
 # This will push images for all platforms in $(PLATFORMS) to the tag $(IMAGE).
