@@ -222,9 +222,7 @@ var Commands = []CommandMeta{
 		Name: "identify",
 		Description: "Identify and display image metadata (format, dimensions, color depth, profiles, etc.)\n" +
 			"This command does not modify the image; it only outputs information.",
-		Params: []ParamMeta{
-			{Name: "verbose", Type: ParamTypeBool, Required: false, Hint: "true = show detailed metadata; false = show brief summary.", Example: "false"},
-		},
+		Params: []ParamMeta{},
 	},
 	{
 		Name:        "level",

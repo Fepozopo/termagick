@@ -400,21 +400,7 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 
 	case "identify":
 		info := wand.IdentifyImage()
-
-		verbose, err := strconv.ParseBool(args[0])
-		if err != nil {
-			return fmt.Errorf("invalid verbose value: %w", err)
-		}
-		if verbose {
-			fmt.Println(info)
-		} else {
-			// Print only a summary
-			summary, err := GetImageInfo(wand)
-			if err != nil {
-				return fmt.Errorf("failed to get image info: %w", err)
-			}
-			fmt.Println(summary)
-		}
+		fmt.Println(info)
 		return nil
 
 	case "level":
