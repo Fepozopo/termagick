@@ -176,6 +176,8 @@ func RunCLI() {
 						lowerName := strings.ToLower(p.Name)
 						lowerHint := strings.ToLower(p.Hint)
 						if p.Type == ParamTypeString && (strings.Contains(lowerName, "path") || strings.Contains(lowerName, "file") || strings.Contains(lowerHint, "path") || strings.Contains(lowerHint, "file")) {
+							// Show the fzf hint only for file-like parameters.
+							prompt = fmt.Sprintf("%s (%s) [enter image path, url, or enter '/' to use fzf]: ", p.Name, typeLabel)
 							val, perr = PromptLineWithFzf(prompt)
 							if perr != nil {
 								fmt.Fprintf(os.Stderr, "input error: %v\n", perr)
@@ -227,7 +229,8 @@ func RunCLI() {
 					lowerName := strings.ToLower(param.Name)
 					// No ParamMeta.Hint available here in legacy path, so only inspect name.
 					if strings.Contains(lowerName, "path") || strings.Contains(lowerName, "file") {
-						// Use the same buffered reader to support single-key '/' detection.
+						// Add the fzf hint only for file-like params, then use the buffered reader helper.
+						prompt = fmt.Sprintf("Enter %s [Enter image path, url, or enter '/' to use fzf]: ", param.Name)
 						v, perr := PromptLineWithFzfReader(reader, prompt)
 						if perr != nil {
 							fmt.Fprintf(os.Stderr, "input error: %v\n", perr)
