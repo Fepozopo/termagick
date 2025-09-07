@@ -168,11 +168,29 @@ func RunCLI() {
 						}
 						prompt := fmt.Sprintf("%s (%s): ", p.Name, typeLabel)
 
-						val, err := PromptLine(prompt)
-						if err != nil {
-							fmt.Fprintf(os.Stderr, "input error: %v\n", err)
-							val = ""
+						var val string
+						var perr error
+
+						// If this parameter looks like a filesystem path or filename, prefer the interactive
+						// PromptLineWithFzf which lets the user press '/' to invoke fzf or type normally.
+						lowerName := strings.ToLower(p.Name)
+						lowerHint := strings.ToLower(p.Hint)
+						if p.Type == ParamTypeString && (strings.Contains(lowerName, "path") || strings.Contains(lowerName, "file") || strings.Contains(lowerHint, "path") || strings.Contains(lowerHint, "file")) {
+							// Show the fzf hint only for file-like parameters.
+							prompt = fmt.Sprintf("%s (%s) [enter image path, url, or enter '/' to use fzf]: ", p.Name, typeLabel)
+							val, perr = PromptLineWithFzf(prompt)
+							if perr != nil {
+								fmt.Fprintf(os.Stderr, "input error: %v\n", perr)
+								val = ""
+							}
+						} else {
+							val, perr = PromptLine(prompt)
+							if perr != nil {
+								fmt.Fprintf(os.Stderr, "input error: %v\n", perr)
+								val = ""
+							}
 						}
+
 						rawArgs[i] = val
 					}
 
@@ -200,24 +218,9 @@ func RunCLI() {
 				}
 			}
 
-			// Fallback legacy behavior: prompt using the simple CommandMeta.Params list and pass raw inputs.
-			rawArgs = make([]string, len(selectedCmd.Params))
-			for i, param := range selectedCmd.Params {
-				prompt := fmt.Sprintf("Enter %s: ", param.Name)
-				val, _ := PromptLine(prompt)
-				rawArgs[i] = val
-			}
-			if err := ApplyCommand(wand, commandName, rawArgs); err != nil {
-				fmt.Fprintf(os.Stderr, "apply command error: %v\n", err)
-				continue
-			}
-			fmt.Printf("Applied %s\n", commandName)
-			// Update inline terminal preview if available.
-			if err := PreviewWand(wand); err == nil {
-				if info, ierr := GetImageInfo(wand); ierr == nil {
-					fmt.Println(info)
-				}
-			}
+			// Metadata not found for this command (this should be unreachable with the current store).
+			fmt.Fprintf(os.Stderr, "metadata for command %s not found\n", commandName)
+			continue
 
 		case 's':
 			out, _ := PromptLine("Enter output filename: ")

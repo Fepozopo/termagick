@@ -132,8 +132,6 @@ func CheckForUpdates() error {
 	// Use the GitHub API fallback detector which is tolerant of tag naming.
 	latest, found, err := detectLatestFallback(repo)
 	fmt.Printf("Current version: %s\n", Version)
-	fmt.Printf("Checking for updates in %s...\n", repo)
-	fmt.Printf("Found release: %v\n", found)
 	if err != nil {
 		return fmt.Errorf("update check failed: %w", err)
 	}
