@@ -218,44 +218,9 @@ func RunCLI() {
 				}
 			}
 
-			// Fallback legacy behavior: prompt using the simple CommandMeta.Params list and pass raw inputs.
-			rawArgs = make([]string, len(selectedCmd.Params))
-			for i, param := range selectedCmd.Params {
-				prompt := fmt.Sprintf("Enter %s: ", param.Name)
-
-				// Prefer PromptLineWithFzf for string params that look like file paths or filenames.
-				var val string
-				if param.Type == ParamTypeString {
-					lowerName := strings.ToLower(param.Name)
-					// No ParamMeta.Hint available here in legacy path, so only inspect name.
-					if strings.Contains(lowerName, "path") || strings.Contains(lowerName, "file") {
-						// Add the fzf hint only for file-like params, then use the buffered reader helper.
-						prompt = fmt.Sprintf("Enter %s [Enter image path, url, or enter '/' to use fzf]: ", param.Name)
-						v, perr := PromptLineWithFzfReader(reader, prompt)
-						if perr != nil {
-							fmt.Fprintf(os.Stderr, "input error: %v\n", perr)
-							v = ""
-						}
-						val = v
-						rawArgs[i] = val
-						continue
-					}
-				}
-
-				typed, _ := PromptLine(prompt)
-				rawArgs[i] = typed
-			}
-			if err := ApplyCommand(wand, commandName, rawArgs); err != nil {
-				fmt.Fprintf(os.Stderr, "apply command error: %v\n", err)
-				continue
-			}
-			fmt.Printf("Applied %s\n", commandName)
-			// Update inline terminal preview if available.
-			if err := PreviewWand(wand); err == nil {
-				if info, ierr := GetImageInfo(wand); ierr == nil {
-					fmt.Println(info)
-				}
-			}
+			// Metadata not found for this command (this should be unreachable with the current store).
+			fmt.Fprintf(os.Stderr, "metadata for command %s not found\n", commandName)
+			continue
 
 		case 's':
 			out, _ := PromptLine("Enter output filename: ")
