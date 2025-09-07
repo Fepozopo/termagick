@@ -168,11 +168,27 @@ func RunCLI() {
 						}
 						prompt := fmt.Sprintf("%s (%s): ", p.Name, typeLabel)
 
-						val, err := PromptLine(prompt)
-						if err != nil {
-							fmt.Fprintf(os.Stderr, "input error: %v\n", err)
-							val = ""
+						var val string
+						var perr error
+
+						// If this parameter looks like a filesystem path or filename, prefer the interactive
+						// PromptLineWithFzf which lets the user press '/' to invoke fzf or type normally.
+						lowerName := strings.ToLower(p.Name)
+						lowerHint := strings.ToLower(p.Hint)
+						if p.Type == ParamTypeString && (strings.Contains(lowerName, "path") || strings.Contains(lowerName, "file") || strings.Contains(lowerHint, "path") || strings.Contains(lowerHint, "file")) {
+							val, perr = PromptLineWithFzf(prompt)
+							if perr != nil {
+								fmt.Fprintf(os.Stderr, "input error: %v\n", perr)
+								val = ""
+							}
+						} else {
+							val, perr = PromptLine(prompt)
+							if perr != nil {
+								fmt.Fprintf(os.Stderr, "input error: %v\n", perr)
+								val = ""
+							}
 						}
+
 						rawArgs[i] = val
 					}
 
@@ -204,8 +220,27 @@ func RunCLI() {
 			rawArgs = make([]string, len(selectedCmd.Params))
 			for i, param := range selectedCmd.Params {
 				prompt := fmt.Sprintf("Enter %s: ", param.Name)
-				val, _ := PromptLine(prompt)
-				rawArgs[i] = val
+
+				// Prefer PromptLineWithFzf for string params that look like file paths or filenames.
+				var val string
+				if param.Type == ParamTypeString {
+					lowerName := strings.ToLower(param.Name)
+					// No ParamMeta.Hint available here in legacy path, so only inspect name.
+					if strings.Contains(lowerName, "path") || strings.Contains(lowerName, "file") {
+						// Use the same buffered reader to support single-key '/' detection.
+						v, perr := PromptLineWithFzfReader(reader, prompt)
+						if perr != nil {
+							fmt.Fprintf(os.Stderr, "input error: %v\n", perr)
+							v = ""
+						}
+						val = v
+						rawArgs[i] = val
+						continue
+					}
+				}
+
+				typed, _ := PromptLine(prompt)
+				rawArgs[i] = typed
 			}
 			if err := ApplyCommand(wand, commandName, rawArgs); err != nil {
 				fmt.Fprintf(os.Stderr, "apply command error: %v\n", err)

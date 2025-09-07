@@ -235,6 +235,7 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 		}
 		sourceWand := imagick.NewMagickWand()
 		defer sourceWand.Destroy()
+		// Read source image into its own wand
 		if err := sourceWand.ReadImage(args[0]); err != nil {
 			return fmt.Errorf("failed to read source image: %w", err)
 		}
