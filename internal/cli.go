@@ -10,15 +10,14 @@ import (
 	"gopkg.in/gographics/imagick.v3/imagick"
 )
 
-func usageAndExit(prog string) {
-	fmt.Printf("Usage: %s <input-image>\n", prog)
-	fmt.Println("Interactive terminal image editor:")
+func usage() {
+	fmt.Println("Commands available:")
 	fmt.Println("  /  - select and apply command")
 	fmt.Println("  o  - open another image at runtime")
 	fmt.Println("  s  - save current image")
 	fmt.Println("  u  - check for updates")
+	fmt.Println("  h  - show this help message")
 	fmt.Println("  q  - quit")
-	os.Exit(1)
 }
 
 func RunCLI() {
@@ -63,7 +62,7 @@ func RunCLI() {
 	}
 
 	fmt.Println("Terminal Image Editor")
-	fmt.Println("Commands available, press '/' to select one, 'o' to open a different image, 's' to save, 'u' to check for updates, 'q' to quit")
+	usage()
 
 	reader := bufio.NewReader(os.Stdin)
 	for {
@@ -124,11 +123,11 @@ func RunCLI() {
 						} else if len(matches) > 1 {
 							fmt.Println("ambiguous selection, candidates:")
 							for _, m := range matches {
-									fmt.Println("  " + m)
-								}
+								fmt.Println("  " + m)
+							}
 							continue
 						}
-						}
+					}
 					if found == "" {
 						fmt.Printf("unknown command: %s\n", selection)
 						continue
@@ -273,6 +272,10 @@ func RunCLI() {
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "update check error: %v\n", err)
 			}
+			continue
+
+		case 'h':
+			usage()
 			continue
 
 		case 'q':
