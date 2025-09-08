@@ -88,10 +88,10 @@ Per the security update [https://groups.google.com/forum/#!topic/golang-announce
 export CGO_CFLAGS_ALLOW='-Xpreprocessor'
 ```
 
-Then install with:
+Then install with (the CLI main package lives under `cmd/termagick`):
 
 ```bash
-go install github.com/Fepozopo/termagick@latest
+go install github.com/Fepozopo/termagick/cmd/termagick@latest
 ```
 
 If you are having trouble with CGO finding the ImageMagick headers or libraries, you can set `CGO_CFLAGS` and `CGO_LDFLAGS` manually. Example:
@@ -99,7 +99,7 @@ If you are having trouble with CGO finding the ImageMagick headers or libraries,
 ```bash
 export CGO_CFLAGS="-I/usr/local/include/ImageMagick-7"
 export CGO_LDFLAGS="-L/usr/local/lib -lMagickWand-7.Q16HDRI -lMagickCore-7.Q16HDRI"
-go install github.com/Fepozopo/termagick@latest
+go install github.com/Fepozopo/termagick/cmd/termagick@latest
 ```
 
 Or, if you installed ImageMagick via Homebrew on macOS or Linux, you can use:
@@ -107,7 +107,7 @@ Or, if you installed ImageMagick via Homebrew on macOS or Linux, you can use:
 ```bash
 export CGO_CFLAGS="$(pkg-config --cflags MagickWand)"
 export CGO_LDFLAGS="$(pkg-config --libs MagickWand)"
-go install github.com/Fepozopo/termagick@latest
+go install github.com/Fepozopo/termagick/cmd/termagick@latest
 ```
 
 This will install it to your `$GOBIN` if set. Otherwise, it will install to `$GOPATH/bin` or `$HOME/go/bin`.
@@ -124,7 +124,9 @@ You can also use the provided scripts in the `scripts/` directory to help with b
 This repo includes helper scripts in the `scripts/` directory to make building and installing more portable across systems that use Homebrew or system packages.
 
 - `scripts/build.sh`: Detects ImageMagick via `pkg-config` (prefers `MagickWand-7.Q16HDRI`), falls back to Homebrew Cellar heuristics, sets `CGO_CFLAGS`/`CGO_LDFLAGS`, and builds a binary into `./bin/` named `termagick-<os>-<arch>`.
-- `scripts/install.sh`: Similar detection logic; sets `CGO_*` env vars and runs `go install github.com/Fepozopo/termagick@latest`. When it detects a Homebrew Cellar path it will offer to register the library directory with the system linker (`ldconfig`) so the runtime loader can find `libMagickWand-7`.
+- `scripts/install.sh`: Similar detection logic; sets `CGO_*` env vars and runs `go install github.com/Fepozopo/termagick/cmd/termagick@latest`. When it detects a Homebrew Cellar path or a valid `pkg-config` library directory it will offer to register the library directory with the system loader (`ldconfig`) so the runtime loader can find `libMagickWand-7`.
+
+The installer writes a loader config file at `/etc/ld.so.conf.d/termagick-imagemagick.conf` when you approve registration. If detection fails the script prompts you to provide the correct ImageMagick library directory and it verifies the directory contains `libMagickWand-7.Q16HDRI` or `libMagickCore-7.Q16HDRI` before registering.
 
 Environment overrides and verification
 

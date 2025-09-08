@@ -31,6 +31,22 @@ if [ -n "$PKG" ]; then
   echo "Using pkg-config package: $PKG"
   export CGO_CFLAGS="$(pkg-config --cflags "$PKG")"
   export CGO_LDFLAGS="$(pkg-config --libs "$PKG")"
+  # try to extract library directory from pkg-config flags
+  PKG_LIB_DIR=""
+  # collect all -L paths reported by pkg-config and prefer the one that actually contains ImageMagick libs
+  PKG_LIB_CANDIDATES="$(pkg-config --libs --static "$PKG" 2>/dev/null | sed -n 's/-L\([^ ]*\)/\1/p' || true)"
+  for _d in $PKG_LIB_CANDIDATES; do
+    if [ -d "$_d" ]; then
+      if ls "$_d"/libMagickWand-7.Q16HDRI.so* >/dev/null 2>&1 || ls "$_d"/libMagickCore-7.Q16HDRI.so* >/dev/null 2>&1; then
+        PKG_LIB_DIR="$_d"
+        break
+      fi
+    fi
+  done
+  # fallback: if none of the candidates contained the expected libs, use the first candidate if present
+  if [ -z "${PKG_LIB_DIR}" ] && [ -n "${PKG_LIB_CANDIDATES}" ]; then
+    PKG_LIB_DIR="$(echo "$PKG_LIB_CANDIDATES" | awk '{print $1}')"
+  fi
 else
   echo "pkg-config couldn't find ImageMagick. Trying Homebrew Cellar heuristics..."
   if [ -n "${IM_PREFIX:-}" ]; then
@@ -43,6 +59,7 @@ else
       export CGO_CFLAGS="-I$IM_DIR/include/ImageMagick-7"
       export CGO_LDFLAGS="-L$IM_DIR/lib -lMagickWand-7.Q16HDRI -lMagickCore-7.Q16HDRI"
       export PKG_CONFIG_PATH="$IM_DIR/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+      PKG_LIB_DIR="$IM_DIR/lib"
       # Offer to register library directory with the system linker (ldconfig)
       if [ "$(id -u)" -ne 0 ]; then
         echo
@@ -89,7 +106,55 @@ if [ -x "$BIN_PATH" ]; then
     echo "WARNING: unresolved shared libraries detected:"
     echo "$UNRESOLVED"
     echo
-    echo "If the unresolved libraries are ImageMagick libs, either set LD_LIBRARY_PATH to include the ImageMagick lib directory, or register the directory with the system linker via ldconfig (see README)."
+    echo "The install script can try to register the ImageMagick lib directory with the system linker (ldconfig)."
+    # If we detected a lib dir from pkg-config or Homebrew, offer to register it automatically
+  if [ -n "${PKG_LIB_DIR:-}" ] && [ -d "$PKG_LIB_DIR" ] && (ls "$PKG_LIB_DIR"/libMagickWand-7.Q16HDRI.so* >/dev/null 2>&1 || ls "$PKG_LIB_DIR"/libMagickCore-7.Q16HDRI.so* >/dev/null 2>&1); then
+      echo
+      read -r -p "Register detected ImageMagick lib dir '$PKG_LIB_DIR' with ldconfig? [y/N]: " reg || true
+      reg="${reg:-N}"
+      if [[ "$reg" =~ ^[Yy]$ ]]; then
+        CONF_FILE="/etc/ld.so.conf.d/termagick-imagemagick.conf"
+        if [ "$(id -u)" -ne 0 ]; then
+          echo "Adding $PKG_LIB_DIR to $CONF_FILE and running ldconfig (sudo will be used)"
+          echo "$PKG_LIB_DIR" | sudo tee "$CONF_FILE" >/dev/null
+          sudo ldconfig
+        else
+          echo "$PKG_LIB_DIR" | tee "$CONF_FILE" >/dev/null
+          ldconfig
+        fi
+        echo "ldconfig updated. Re-checking library resolution..."
+        UNRESOLVED=$(ldd "$BIN_PATH" 2>/dev/null | grep 'not found' || true)
+        if [ -z "$UNRESOLVED" ]; then
+          echo "All shared libraries resolved successfully."
+        else
+          echo "Still unresolved:"; echo "$UNRESOLVED"
+        fi
+      else
+        echo "Detected lib dir '$PKG_LIB_DIR' does not appear to contain ImageMagick libs."
+        echo "Skipping automatic ldconfig registration for that path."
+        echo "You can register the correct library directory manually or provide it below."
+        echo "Example: echo '/path/to/imagemagick/lib' | sudo tee /etc/ld.so.conf.d/termagick-imagemagick.conf && sudo ldconfig"
+      fi
+    else
+      echo "Could not detect ImageMagick lib directory automatically."
+      echo "If you know the lib directory, you can register it with ldconfig now."
+      read -r -p "Enter ImageMagick lib directory to register (or leave empty to skip): " manual || true
+      manual="${manual:-}"
+      if [ -n "$manual" ] && [ -d "$manual" ]; then
+        CONF_FILE="/etc/ld.so.conf.d/termagick-imagemagick.conf"
+        if [ "$(id -u)" -ne 0 ]; then
+          echo "$manual" | sudo tee "$CONF_FILE" >/dev/null
+          sudo ldconfig
+        else
+          echo "$manual" | tee "$CONF_FILE" >/dev/null
+          ldconfig
+        fi
+        echo "ldconfig updated."
+      else
+        echo "No directory provided or directory doesn't exist. Skipping registration."
+        echo "You can set LD_LIBRARY_PATH or register the lib dir later as described in the README."
+      fi
+    fi
   else
     echo "All shared libraries resolved successfully."
   fi
