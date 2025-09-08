@@ -75,7 +75,8 @@ fi
 
 echo "Installing termagick via go..."
 export CGO_CFLAGS_ALLOW='-Xpreprocessor'
-go install github.com/Fepozopo/termagick@latest
+# Install the CLI main package (module root doesn't contain a main package)
+go install github.com/Fepozopo/termagick/cmd/termagick@latest
 echo "Install complete. Ensure runtime linker can find ImageMagick libs (see README for LD_LIBRARY_PATH/ldconfig guidance)."
 
 # CI-friendly verification: check the installed binary for unresolved shared libs
