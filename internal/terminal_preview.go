@@ -136,6 +136,45 @@ func hasChafa() bool {
 	return false
 }
 
+// postImageNewlines returns a sane number of newline lines to emit after an image
+// is rendered. It uses hints like the requested rows (from kitty placement) or
+// the chafa size if provided. The result is clamped to avoid emitting a large
+// gap; default is 1-3 lines depending on image height hints.
+func postImageNewlines(requestedRows int) int {
+	// If explicit KITTY_PREVIEW_ROWS is set, prefer that.
+	if v := os.Getenv("KITTY_PREVIEW_ROWS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			if n == 0 {
+				return 1
+			}
+			if n <= 3 {
+				return n
+			}
+			if n <= 10 {
+				return 3
+			}
+			return 4
+		}
+	}
+
+	// If chafa provided a requested row count, use it to pick 1-4 lines.
+	if requestedRows > 0 {
+		if requestedRows <= 2 {
+			return 1
+		}
+		if requestedRows <= 6 {
+			return 2
+		}
+		if requestedRows <= 20 {
+			return 3
+		}
+		return 4
+	}
+
+	// Default small padding to ensure prompt shows below image.
+	return 1
+}
+
 // PreviewSupported returns true if the running environment likely supports a terminal inline preview.
 // We consider chafa availability as a valid fallback even if no inline/sixel protocol is detected.
 func PreviewSupported() bool {
@@ -367,9 +406,13 @@ func sendKittyPNG(data []byte) error {
 		}
 	}
 
-	// After the image is transmitted, we must print a newline to ensure the cursor
-	// is advanced past the image area. Otherwise, subsequent text may be obscured.
-	fmt.Println()
+	// After the image is transmitted, advance the cursor a small number of lines
+	// so subsequent text appears directly under the image. Use environment
+	// hints (KITTY_PREVIEW_ROWS / CHAFA_SIZE) when available and clamp to a
+	// small maximum to avoid a large gap.
+	for i := 0; i < postImageNewlines(rows); i++ {
+		fmt.Println()
+	}
 
 	// Done
 	return nil
@@ -388,10 +431,9 @@ func sendInlineImagePNG(data []byte) error {
 	n, err := os.Stdout.Write([]byte(seq))
 	debugf("wrote %d bytes to stdout for inline image (err=%v)", n, err)
 
-	// After the image is transmitted, we must print a newline to ensure the cursor
-	// is advanced past the image area. Otherwise, subsequent text may be obscured.
-	// We print multiple newlines to account for the height of the image.
-	for i := 0; i < 20; i++ {
+	// After the image is transmitted, advance the cursor a small number of lines
+	// so the prompt/info prints directly under the image instead of far below.
+	for i := 0; i < postImageNewlines(0); i++ {
 		fmt.Println()
 	}
 
@@ -418,8 +460,9 @@ func sendSixelPNG(data []byte) error {
 
 	if err := cmd.Run(); err == nil {
 		debugf("img2sixel succeeded")
-		// Ensure the cursor moves to the next line after the image.
-		for i := 0; i < 20; i++ {
+		// Advance a small number of lines after the image so subsequent text
+		// appears just below it.
+		for i := 0; i < postImageNewlines(0); i++ {
 			fmt.Println()
 		}
 		return nil
@@ -430,10 +473,7 @@ func sendSixelPNG(data []byte) error {
 	// If img2sixel isn't available, try chafa as a fallback (chafa supports multiple terminals).
 	if err := sendChafaPNG(data); err == nil {
 		debugf("chafa succeeded")
-		// Ensure the cursor moves to the next line after the image.
-		for i := 0; i < 20; i++ {
-			fmt.Println()
-		}
+		// sendChafaPNG already advances the cursor; don't print extra lines here.
 		return nil
 	} else {
 		debugf("chafa failed: %v", err)
@@ -447,7 +487,7 @@ func sendSixelPNG(data []byte) error {
 	debugf("wrote %d bytes for inline PNG fallback (err=%v)", n, err)
 
 	// Ensure the cursor moves to the next line after the image.
-	for i := 0; i < 20; i++ {
+	for i := 0; i < postImageNewlines(0); i++ {
 		fmt.Println()
 	}
 
@@ -510,7 +550,18 @@ func sendChafaPNG(data []byte) error {
 	}
 
 	// Ensure adequate spacing after the image so subsequent text isn't overwritten.
-	for i := 0; i < 20; i++ {
+	// Use CHAFA_SIZE hint if provided; otherwise advance only a small number
+	// of lines so the prompt prints just under the rendered output.
+	sizeRows := 0
+	if v := os.Getenv("CHAFA_SIZE"); v != "" {
+		parts := strings.Split(v, "x")
+		if len(parts) == 2 {
+			if h, err := strconv.Atoi(parts[1]); err == nil {
+				sizeRows = h
+			}
+		}
+	}
+	for i := 0; i < postImageNewlines(sizeRows); i++ {
 		fmt.Println()
 	}
 
