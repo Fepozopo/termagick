@@ -4,6 +4,8 @@ set -euo pipefail
 # Portable build helper for termagick
 # Tries to use pkg-config for ImageMagick 7, falls back to Homebrew paths when available
 
+export CGO_CFLAGS_ALLOW='-Xpreprocessor'
+
 PKG_V7="MagickWand-7.Q16HDRI"
 PKG_LEGACY="MagickWand"
 
