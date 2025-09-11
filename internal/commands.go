@@ -214,6 +214,18 @@ var Commands = []CommandMeta{
 		Params:      []ParamMeta{},
 	},
 	{
+		Name:        "floodfillPaint",
+		Description: "Flood-fill paint starting at a point. Changes the color of connected pixels matching a target or fills until a border color is reached.",
+		Params: []ParamMeta{
+			{Name: "fillColor", Type: ParamTypeString, Required: true, Hint: "Fill color (hex, rgb(), or name) used to paint the region.", Example: "#ff0000"},
+			{Name: "fuzz", Type: ParamTypePercent, Required: true, Min: float64Ptr(0.0), Max: float64Ptr(100.0), Hint: "Tolerance when matching colors (percentage). Higher values allow greater color differences to be considered a match.", Example: "3.0", Unit: "%"},
+			{Name: "borderColor", Type: ParamTypeString, Required: true, Hint: "Border color (hex, rgb(), or name) used when painting to a border.", Example: "#000000"},
+			{Name: "x", Type: ParamTypeInt, Required: true, Hint: "X coordinate of the starting point for the flood fill.", Example: "10", Unit: "px"},
+			{Name: "y", Type: ParamTypeInt, Required: true, Hint: "Y coordinate of the starting point for the flood fill.", Example: "20", Unit: "px"},
+			{Name: "invert", Type: ParamTypeBool, Required: true, Hint: "If true, paint pixels that do NOT match the target color (invert selection).", Example: "false"},
+		},
+	},
+	{
 		Name:        "flop",
 		Description: "Flip the image horizontally (left ↔ right)",
 		Params:      []ParamMeta{},

@@ -383,6 +383,40 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 	case "flip":
 		return wand.FlipImage()
 
+	case "floodfillPaint":
+		// floodfillPaint requires 6 args: fillColor, fuzz, borderColor, x, y, invert
+		if len(args) != 6 {
+			return fmt.Errorf("floodfillPaint requires 6 arguments: fillColor, fuzz, borderColor, x, y, invert")
+		}
+		fillColor := args[0]
+		fuzz, err := strconv.ParseFloat(args[1], 64)
+		if err != nil {
+			return fmt.Errorf("invalid fuzz: %w", err)
+		}
+		borderColor := args[2]
+		x, err := strconv.ParseInt(args[3], 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid x: %w", err)
+		}
+		y, err := strconv.ParseInt(args[4], 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid y: %w", err)
+		}
+		invert, err := strconv.ParseBool(args[5])
+		if err != nil {
+			return fmt.Errorf("invalid invert value: %w", err)
+		}
+		// Prepare pixel wands
+		fillPixel := imagick.NewPixelWand()
+		defer fillPixel.Destroy()
+		fillPixel.SetColor(fillColor)
+
+		borderPixel := imagick.NewPixelWand()
+		defer borderPixel.Destroy()
+		borderPixel.SetColor(borderColor)
+
+		return wand.FloodfillPaintImage(fillPixel, fuzz, borderPixel, int(x), int(y), invert)
+
 	case "flop":
 		return wand.FlopImage()
 
