@@ -4,7 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
+
+	"gopkg.in/gographics/imagick.v3/imagick"
 )
 
 // PromptLine displays a prompt and reads a full line of input from the user.
@@ -84,4 +87,27 @@ func PromptLineWithFzfReader(reader *bufio.Reader, prompt string) (string, error
 // PromptLineOrFzf (which reads the whole line and treats "/" as fzf trigger).
 func PromptLineWithFzf(prompt string) (string, error) {
 	return PromptLineOrFzf(prompt)
+}
+
+// GetImageInfo returns a string with basic info about the image in the wand
+func GetImageInfo(wand *imagick.MagickWand) (string, error) {
+	if wand == nil {
+		return "", fmt.Errorf("nil wand")
+	}
+	format := wand.GetImageFormat()
+	width := wand.GetImageWidth()
+	height := wand.GetImageHeight()
+	compression := wand.GetImageCompression()
+	compressionQuality := wand.GetImageCompressionQuality()
+
+	// Resolve compression name using the shared mapping helper defined in meta.go.
+	var compressionName string
+	if name, ok := mapNumericToEnumName("compression", int64(compression)); ok {
+		compressionName = name
+	} else {
+		// fallback to numeric representation if unknown
+		compressionName = strconv.FormatInt(int64(compression), 10)
+	}
+
+	return fmt.Sprintf("Format: %s, Width: %d, Height: %d\nCompression: %s, Compression Quality: %v", format, width, height, compressionName, compressionQuality), nil
 }

@@ -1,41 +1,13 @@
 package internal
 
 import (
-	"bytes"
 	"fmt"
-	"image"
-	"image/color"
-	"image/draw"
-	"image/png"
 	"math"
 	"os"
 	"strconv"
 
 	"gopkg.in/gographics/imagick.v3/imagick"
 )
-
-// GetImageInfo returns a string with basic info about the image in the wand
-func GetImageInfo(wand *imagick.MagickWand) (string, error) {
-	if wand == nil {
-		return "", fmt.Errorf("nil wand")
-	}
-	format := wand.GetImageFormat()
-	width := wand.GetImageWidth()
-	height := wand.GetImageHeight()
-	compression := wand.GetImageCompression()
-	compressionQuality := wand.GetImageCompressionQuality()
-
-	// Resolve compression name using the shared mapping helper defined in meta.go.
-	var compressionName string
-	if name, ok := mapNumericToEnumName("compression", int64(compression)); ok {
-		compressionName = name
-	} else {
-		// fallback to numeric representation if unknown
-		compressionName = strconv.FormatInt(int64(compression), 10)
-	}
-
-	return fmt.Sprintf("Format: %s, Width: %d, Height: %d\nCompression: %s, Compression Quality: %v", format, width, height, compressionName, compressionQuality), nil
-}
 
 // ApplyCommand applies the given command to the magick wand
 func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) error {
@@ -615,113 +587,10 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 		hGEq := histBins(eqG, bins)
 		hBEq := histBins(eqB, bins)
 
-		// Prepare PNG canvas
-		imgW := int(math.Max(640, float64(bins*3))) // ensure reasonably visible width
-		imgH := 240
-		left := 30
-		right := 20
-		top := 10
-		bottom := 30
-		plotW := imgW - left - right
-		plotH := imgH - top - bottom
-
-		canvas := image.NewRGBA(image.Rect(0, 0, imgW, imgH))
-		// white background
-		draw.Draw(canvas, canvas.Bounds(), &image.Uniform{C: color.White}, image.Point{}, draw.Src)
-
-		// find global max for scaling
-		maxCount := 1
-		all := [][]int{hREq, hGEq, hBEq}
-		for _, arr := range all {
-			for _, v := range arr {
-				if v > maxCount {
-					maxCount = v
-				}
-			}
-		}
-
-		// draw line using simple Bresenham algorithm
-		drawLine := func(img *image.RGBA, x0, y0, x1, y1 int, col color.RGBA) {
-			dx := int(math.Abs(float64(x1 - x0)))
-			dy := int(math.Abs(float64(y1 - y0)))
-			sx := -1
-			if x0 < x1 {
-				sx = 1
-			}
-			sy := -1
-			if y0 < y1 {
-				sy = 1
-			}
-			errVal := dx - dy
-			for {
-				if x0 >= 0 && x0 < img.Bounds().Dx() && y0 >= 0 && y0 < img.Bounds().Dy() {
-					img.SetRGBA(x0, y0, col)
-				}
-				if x0 == x1 && y0 == y1 {
-					break
-				}
-				e2 := 2 * errVal
-				if e2 > -dy {
-					errVal -= dy
-					x0 += sx
-				}
-				if e2 < dx {
-					errVal += dx
-					y0 += sy
-				}
-			}
-		}
-
-		// Function to plot a histogram curve given counts and color
-		plotCurve := func(counts []int, col color.RGBA) {
-			prevX, prevY := -1, -1
-			for i := 0; i < bins; i++ {
-				x := left
-				if bins == 1 {
-					x = left + plotW/2
-				} else {
-					x = left + int(math.Round(float64(i)*(float64(plotW-1)/float64(bins-1))))
-				}
-				val := counts[i]
-				// scale val to plot height
-				y := top + plotH - int(math.Round(float64(val)/float64(maxCount)*float64(plotH)))
-				if y < top {
-					y = top
-				}
-				if prevX >= 0 {
-					drawLine(canvas, prevX, prevY, x, y, col)
-				}
-				prevX = x
-				prevY = y
-			}
-		}
-
-		// Plot R, G, B curves (alpha=255)
-		plotCurve(hREq, color.RGBA{255, 64, 64, 255})
-		plotCurve(hGEq, color.RGBA{64, 255, 64, 255})
-		plotCurve(hBEq, color.RGBA{64, 64, 255, 255})
-
-		// draw simple axes and labels
-		axisColor := color.RGBA{0, 0, 0, 255}
-		// x-axis
-		drawLine(canvas, left, top+plotH, left+plotW-1, top+plotH, axisColor)
-		// y-axis
-		drawLine(canvas, left, top, left, top+plotH, axisColor)
-
-		// legend boxes
-		legendY := imgH - bottom + 6
-		boxSize := 10
-		// R
-		draw.Draw(canvas, image.Rect(left, legendY, left+boxSize, legendY+boxSize), &image.Uniform{C: color.RGBA{255, 64, 64, 255}}, image.Point{}, draw.Src)
-		// G
-		draw.Draw(canvas, image.Rect(left+80, legendY, left+80+boxSize, legendY+boxSize), &image.Uniform{C: color.RGBA{64, 255, 64, 255}}, image.Point{}, draw.Src)
-		// B
-		draw.Draw(canvas, image.Rect(left+160, legendY, left+160+boxSize, legendY+boxSize), &image.Uniform{C: color.RGBA{64, 64, 255, 255}}, image.Point{}, draw.Src)
-
-		// Encode to PNG
-		var buf bytes.Buffer
-		if err := png.Encode(&buf, canvas); err != nil {
-			return fmt.Errorf("png encode failed: %w", err)
+		// Use helper to create PNG bytes
+		pngBytes, err := createHistogramPNG(bins, hREq, hGEq, hBEq)
+		if err != nil {
+			return err
 		}
 
 		// Preview via existing helper
@@ -730,10 +599,10 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 			return fmt.Errorf("failed to create magick wand for histogram")
 		}
 		defer outWand.Destroy()
-		if err := outWand.ReadImageBlob(buf.Bytes()); err != nil {
+		if err := outWand.ReadImageBlob(pngBytes); err != nil {
 			// As a fallback, write PNG to temp file so user can inspect it.
 			tmp := os.TempDir() + "/termagick_histogram.png"
-			if writeErr := os.WriteFile(tmp, buf.Bytes(), 0644); writeErr == nil {
+			if writeErr := os.WriteFile(tmp, pngBytes, 0644); writeErr == nil {
 				return fmt.Errorf("failed to create magick image: %v (wrote PNG to %s)", err, tmp)
 			} else {
 				return fmt.Errorf("failed to create magick image: %v (also failed to write temp PNG: %v)", err, writeErr)
@@ -743,7 +612,7 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 		// Try preview. If preview fails, write temp PNG and inform user.
 		if err := PreviewWand(outWand); err != nil {
 			tmp := os.TempDir() + "/termagick_histogram.png"
-			writeErr := os.WriteFile(tmp, buf.Bytes(), 0644)
+			writeErr := os.WriteFile(tmp, pngBytes, 0644)
 			if writeErr == nil {
 				fmt.Fprintf(os.Stderr, "Histogram written to %s (preview not supported or failed: %v)\n", tmp, err)
 				return nil
