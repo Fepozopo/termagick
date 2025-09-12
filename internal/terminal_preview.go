@@ -348,7 +348,7 @@ func sendKittyPNG(data []byte) error {
 	const chunkSize = 4096
 
 	// Determine preview placement size from environment (defaults).
-	cols := 40
+	cols := 60
 	rows := 20
 	if v := os.Getenv("KITTY_PREVIEW_COLS"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {

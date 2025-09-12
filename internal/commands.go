@@ -243,6 +243,13 @@ var Commands = []CommandMeta{
 		Params:      []ParamMeta{},
 	},
 	{
+		Name:        "histogram",
+		Description: "Generate the image color histogram and display it as an inline preview in supported terminals",
+		Params: []ParamMeta{
+			{Name: "n", Type: ParamTypeInt, Required: false, Min: float64Ptr(1), Max: float64Ptr(4096), Hint: "Number of bins to group intensities for the plotted histograms. Default 256 — lower = smoother, higher = more detailed (may be slower).", Example: "256"},
+		},
+	},
+	{
 		Name: "identify",
 		Description: "Identify and display image metadata (format, dimensions, color depth, profiles, etc.)\n" +
 			"This command does not modify the image; it only outputs information.",
