@@ -509,6 +509,28 @@ func ApplyCommand(wand *imagick.MagickWand, commandName string, args []string) e
 		}
 		return wand.OilPaintImage(radius, sigma)
 
+	case "polaroid":
+		// polaroid requires 3 args: caption, angle, method
+		if len(args) != 3 {
+			return fmt.Errorf("polaroid requires 3 arguments: caption, angle, method")
+		}
+		caption := args[0]
+		angle, err := strconv.ParseFloat(args[1], 64)
+		if err != nil {
+			return fmt.Errorf("invalid angle: %w", err)
+		}
+		methodInt, err := strconv.ParseInt(args[2], 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid method: %w", err)
+		}
+		// Create a drawing wand for the caption. The PolaroidImage call will use
+		// the provided drawing wand to render the caption onto the image.
+		dw := imagick.NewDrawingWand()
+		defer dw.Destroy()
+		// Call PolaroidImage with the provided interpolation method cast to the
+		// imagick pixel interpolation method type.
+		return wand.PolaroidImage(dw, caption, angle, imagick.PixelInterpolateMethod(methodInt))
+
 	case "posterize":
 		if len(args) != 2 {
 			return fmt.Errorf("posterize requires 2 arguments: levels and dither (true/false)")

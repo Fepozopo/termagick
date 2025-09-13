@@ -306,6 +306,15 @@ var Commands = []CommandMeta{
 		},
 	},
 	{
+		Name:        "polaroid",
+		Description: "Simulate a Polaroid picture",
+		Params: []ParamMeta{
+			{Name: "caption", Type: ParamTypeString, Required: true, Hint: "The Polaroid caption text.", Example: "My Photo"},
+			{Name: "angle", Type: ParamTypeFloat, Required: true, Hint: "Apply the effect along this angle.", Example: "30.0", Unit: "deg"},
+			{Name: "method", Type: ParamTypeInt, Required: true, Hint: "Pixel interpolation method as an integer.", Example: "1"},
+		},
+	},
+	{
 		Name:        "posterize",
 		Description: "Reduce the number of colors in the image (posterize)",
 		Params: []ParamMeta{
